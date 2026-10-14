@@ -95,7 +95,9 @@
         sel('Date order', [['dm', 'Day then month'], ['md', 'Month then day']], 'order');
         sel('Year', [['0', 'None'], ['2', '2 digits (26)'], ['4', '4 digits (2026)']], 'year');
         sel('Time', [['12', '12-hour + minutes'], ['24', '24-hour + minutes'], ['0', 'No time']], 'time');
-        sel('Seconds ahead', [['0', '0'], ['30', '30 s'], ['60', '60 s (1 min)'], ['90', '90 s'], ['120', '2 min'], ['180', '3 min'], ['300', '5 min'], ['600', '10 min']], 'ahead');
+        const ahead = row('Seconds ahead', el('input'));
+        ahead.inputMode = 'numeric'; ahead.placeholder = '0'; ahead.value = Number(d.ahead) ? d.ahead : '';
+        ahead.addEventListener('input', () => { ahead.value = ahead.value.replace(/\D/g, '').slice(0, 5); d.ahead = ahead.value || '0'; update(); });
         const z = el('label', 'sw'); const zc = el('input'); zc.type = 'checkbox'; zc.checked = d.zeros;
         z.append(el('span', null, 'Leading zeros (07 instead of 7)'), zc); group.append(z);
         zc.addEventListener('change', () => { d.zeros = zc.checked; update(); });
