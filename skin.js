@@ -131,8 +131,18 @@ const keyEls = KEYMAP.portrait.map(() => {
   stage.append(b); return b;
 });
 const hot = [mk('div', 'tl', 'hot'), mk('div', 'tr', 'hot')];
+// Alignment check: key outlines (CSS), a line of layout numbers and a dot where each touch lands.
+const diag = mk('div', 'diag');
+document.addEventListener('pointerdown', (e) => {
+  if (!Skin.check) return;
+  const dot = mk('i', null, 'diagdot'); dot.className = 'diagdot';
+  dot.style.left = e.clientX + 'px'; dot.style.top = e.clientY + 'px';
+  stage.append(dot); setTimeout(() => dot.remove(), 900);
+  const k = document.elementFromPoint(e.clientX, e.clientY)?.closest('.k');
+  diag.textContent = diag.textContent.replace(/ ⇒.*$/, '') + ` ⇒ ${Math.round(e.clientX)},${Math.round(e.clientY)} ${k ? k.dataset.k : 'none'}`;
+}, true);
 hot[0].innerHTML = CLOCK_SVG; hot[1].innerHTML = CALC_SVG;
-stage.append(...hot);
+stage.append(...hot, diag);
 
 // Where the baseline sits inside a line box, as a fraction of font size.
 function baselineRatio(weight) {
@@ -243,7 +253,9 @@ function viewSize() {
   const home = (standalone() || W === SW) && SW && SH && H < SH && W === SW;
   if (home && safeTop > 0 && Math.abs(SH - H - safeTop) <= 3) H = SH;
   else if (home && safeTop === 0 && standalone()) top = SH - H;
-  Skin.view = { inner: `${innerWidth}×${innerHeight}`, screen: `${SW}×${SH}`, safeTop, standalone: standalone(), used: `${W}×${H}`, top };
+  const vv = window.visualViewport;
+  Skin.view = { inner: `${innerWidth}×${innerHeight}`, screen: `${SW}×${SH}`, safeTop, standalone: standalone(), used: `${W}×${H}`, top,
+    scroll: `${Math.round(scrollX)},${Math.round(scrollY)}`, vv: vv ? `${Math.round(vv.width)}×${Math.round(vv.height)}@${Math.round(vv.offsetTop)}` : '-' };
   stage.style.width = W + 'px'; stage.style.height = H + 'px';
   document.documentElement.style.setProperty('--appH', H + 'px'); // settings and peek use the same height
   return { W, H, top };
@@ -284,13 +296,22 @@ Skin.layout = function () {
   Skin.cal = calibrate(g, s, ox, oy);
   Skin.setClear(Skin.isC); Skin.setCue(Skin.cue);
   Skin.setDisplay(Skin.text.main, Skin.text.expr);
+  const v = Skin.view;
+  diag.textContent = `${v.inner} scr ${v.screen} top ${v.top} sc ${v.scroll} vv ${v.vv} ${orient}`;
 };
 // Re-lay out several times after a rotation: the reported sizes settle over a few hundred ms.
 let relayoutTimers = [];
+// iOS Home Screen apps can be left scrolled by about the status-bar height after rotating, which shifts
+// what you see away from where taps land. Scroll back to the top each time before laying out.
+function unscroll() {
+  if (scrollX || scrollY) scrollTo(0, 0);
+  document.documentElement.scrollTop = 0; document.body.scrollTop = 0;
+}
 function relayoutSoon() {
   relayoutTimers.forEach(clearTimeout);
-  relayoutTimers = [0, 100, 300, 700, 1200].map((t) => setTimeout(() => Skin.layout(), t));
+  relayoutTimers = [0, 100, 300, 700, 1200].map((t) => setTimeout(() => { unscroll(); Skin.layout(); }, t));
 }
+addEventListener('scroll', unscroll, { passive: true });
 addEventListener('resize', relayoutSoon);
 addEventListener('orientationchange', relayoutSoon);
 if (screen.orientation) screen.orientation.addEventListener('change', relayoutSoon);

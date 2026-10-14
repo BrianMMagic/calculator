@@ -15,7 +15,7 @@
 <style>
   :root { --bg:#000; --fn:#a5a5a5; --num:#333; --op:#ff9f0a; --txt:#fff; }
   * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
-  html, body { margin:0; height:100%; background:var(--bg); color:var(--txt);
+  html, body { margin:0; height:100%; overscroll-behavior:none; background:var(--bg); color:var(--txt);
     font-family:-apple-system, "SF Pro Display", "Helvetica Neue", Arial, sans-serif; overflow:hidden; touch-action:manipulation; }
   /* Stage: screenshot skin (or drawn keys) with invisible keys and live text laid over it */
   #stage { position:fixed; left:0; top:0; overflow:hidden; background:#000; } /* sized from JS */
@@ -28,6 +28,11 @@
     font-family:-apple-system, "SF Pro Display", "SF Pro", system-ui, "Helvetica Neue", Arial, sans-serif; }
   #expr { color:#8d8d93; }
   #stage.check .txt { color:rgba(255,40,40,.6); }
+  #diag { display:none; position:absolute; left:4px; right:4px; top:calc(env(safe-area-inset-top) + 2px); z-index:4; pointer-events:none;
+    font:11px ui-monospace, Menlo, monospace; color:#ff4040; background:rgba(0,0,0,.6); padding:2px 4px; white-space:normal; }
+  #stage.check #diag { display:block; }
+  #stage.check .k, #stage.check .hot { outline:2px solid rgba(255,40,40,.85); outline-offset:-2px; }
+  .diagdot { position:absolute; width:16px; height:16px; margin:-8px 0 0 -8px; border-radius:50%; background:#ff2d2d; z-index:5; pointer-events:none; }
   .k { position:absolute; display:flex; align-items:center; justify-content:center; overflow:hidden; color:#fff;
     font-family:-apple-system, "SF Pro Display", "SF Pro", system-ui, sans-serif; font-weight:400; }
   .k .lbl { display:none; line-height:1; }
@@ -448,11 +453,11 @@
   </section>
 </div>
 
-<script src="skin.js?v=19"></script>
-<script src="app.js?v=19"></script>
-<script src="ios.js?v=19"></script>
-<script src="settings-ui.js?v=19"></script>
-<script src="builder.js?v=19"></script>
+<script src="skin.js?v=20"></script>
+<script src="app.js?v=20"></script>
+<script src="ios.js?v=20"></script>
+<script src="settings-ui.js?v=20"></script>
+<script src="builder.js?v=20"></script>
 <script>
   // Updates: a new version downloads in the background; Settings shows "Update ready" with an Update now button.
   window.appUpdate = { state: 'current', reg: null };

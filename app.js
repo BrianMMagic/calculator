@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION = '1.0.0'; // shown in Settings. Each release also bumps the build number: ?v= in index.html and the cache name in sw.js
+const APP_VERSION = '1.0.1'; // shown in Settings. Each release also bumps the build number: ?v= in index.html and the cache name in sw.js
 // Toxic+-style force calculator. See HOW-TOXIC-PLUS-WORKS.md for the behaviour this follows.
 
 // ---------- settings ----------
@@ -893,7 +893,7 @@ function openSettings() {
   $('s-tdx').value = S.textDX; $('s-tdy').value = S.textDY; $('s-check').checked = Skin.check;
   $('s-skinmsg').textContent = '';
   const v = Skin.view;
-  $('s-viewinfo').textContent = `Screen check: page ${v.inner}, screen ${v.screen}, status bar ${v.safeTop}, home-screen app ${v.standalone ? 'yes' : 'no'}, using ${v.used}, page starts ${v.top} down`;
+  $('s-viewinfo').textContent = `Screen check: page ${v.inner}, screen ${v.screen}, status bar ${v.safeTop}, home-screen app ${v.standalone ? 'yes' : 'no'}, using ${v.used}, page starts ${v.top} down, scrolled ${v.scroll}, visible ${v.vv}`;
   $('s-signs').value = S.signs; $('s-chinese').value = S.chinese;
   $('log').textContent = S.log || '—';
   $('settings').classList.add('on');
