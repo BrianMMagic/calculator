@@ -146,6 +146,8 @@
   #settings .fsub span { flex:none; }
   #settings .fextra { flex:1; text-align:left; direction:ltr; color:#ff9f0a; font-size:16px; padding:6px 0; }
   #settings .addrow .lbl { color:#ff9f0a; }
+  #settings .ver { display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:6px 10px; font-size:13px; color:#8e8e93; margin:4px 0 0; text-align:center; }
+  #settings .ver button { border:0; border-radius:14px; background:#ff9f0a; color:#000; font:inherit; font-weight:600; padding:6px 12px; }
   #log { font-family:ui-monospace, Menlo, monospace; font-size:12px; white-space:pre-wrap; color:#9a9a9a; padding:0 14px 12px; max-height:none; }
 </style>
 </head>
@@ -193,6 +195,7 @@
       <button class="row" data-go="log" type="button"><span class="ic" style="background:#636366">⌚</span><span class="lbl">Log</span><span class="chev">›</span></button>
       <button class="row" data-go="guide" type="button"><span class="ic" style="background:#0a84ff">?</span><span class="lbl">How to use</span><span class="chev">›</span></button>
     </div>
+    <div class="ver"><span id="app-version"></span><span id="app-update"></span><button id="app-update-btn" type="button" hidden>Update now</button></div>
   </section>
 
   <!-- ===== Force ===== -->
@@ -445,13 +448,29 @@
   </section>
 </div>
 
-<script src="skin.js?v=17"></script>
-<script src="app.js?v=17"></script>
-<script src="ios.js?v=17"></script>
-<script src="settings-ui.js?v=17"></script>
-<script src="builder.js?v=17"></script>
+<script src="skin.js?v=18"></script>
+<script src="app.js?v=18"></script>
+<script src="ios.js?v=18"></script>
+<script src="settings-ui.js?v=18"></script>
+<script src="builder.js?v=18"></script>
 <script>
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  // Updates: a new version downloads in the background; Settings shows "Update ready" with an Update now button.
+  window.appUpdate = { state: 'current', reg: null };
+  if ('serviceWorker' in navigator) {
+    const mark = (state) => { appUpdate.state = state; dispatchEvent(new Event('appupdate')); };
+    navigator.serviceWorker.register('sw.js').then((reg) => {
+      appUpdate.reg = reg;
+      if (reg.waiting && navigator.serviceWorker.controller) mark('ready');
+      reg.addEventListener('updatefound', () => {
+        const w = reg.installing; mark('downloading');
+        w.addEventListener('statechange', () => { if (w.state === 'installed') mark(navigator.serviceWorker.controller ? 'ready' : 'current'); });
+      });
+    }).catch(() => {});
+    let reloading = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (appUpdate.applying && !reloading) { reloading = true; location.reload(); } });
+  }
+  appUpdate.check = () => appUpdate.reg && appUpdate.reg.update().catch(() => {});
+  appUpdate.apply = () => { const w = appUpdate.reg && appUpdate.reg.waiting; if (w) { appUpdate.applying = true; w.postMessage('skipWaiting'); } else location.reload(); };
 </script>
 </body>
 </html>

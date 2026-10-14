@@ -39,11 +39,22 @@
   root.addEventListener('input', summaries);
   root.addEventListener('change', summaries);
 
-  // Each time the menu opens, start on the main list with fresh summaries.
+  // Version and update status at the bottom of the main page.
+  const verEl = $('app-version'), updEl = $('app-update'), updBtn = $('app-update-btn');
+  function showVersion() {
+    verEl.textContent = 'Version ' + APP_VERSION;
+    const st = window.appUpdate ? appUpdate.state : 'current';
+    updEl.textContent = st === 'ready' ? '· New version downloaded' : st === 'downloading' ? '· Downloading update…' : '· Up to date';
+    updBtn.hidden = st !== 'ready';
+  }
+  updBtn.addEventListener('click', () => { updBtn.disabled = true; updEl.textContent = '· Updating…'; appUpdate.apply(); });
+  addEventListener('appupdate', showVersion);
+
+  // Each time the menu opens, start on the main list with fresh summaries and check for updates.
   let wasOpen = false;
   new MutationObserver(() => {
     const open = root.classList.contains('on');
-    if (open && !wasOpen) { go('main'); summaries(); }
+    if (open && !wasOpen) { go('main'); summaries(); showVersion(); if (window.appUpdate) appUpdate.check(); }
     wasOpen = open;
   }).observe(root, { attributes: true, attributeFilter: ['class'] });
 })();

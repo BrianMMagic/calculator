@@ -1,4 +1,5 @@
 'use strict';
+const APP_VERSION = '18'; // bump together with ?v= in index.html and the cache name in sw.js
 // Toxic+-style force calculator. See HOW-TOXIC-PLUS-WORKS.md for the behaviour this follows.
 
 // ---------- settings ----------
