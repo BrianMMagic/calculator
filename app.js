@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION = '1.0.1'; // shown in Settings. Each release also bumps the build number: ?v= in index.html and the cache name in sw.js
+const APP_VERSION = '1.1.0'; // shown in Settings. Each release also bumps the build number: ?v= in index.html and the cache name in sw.js
 // Toxic+-style force calculator. See HOW-TOXIC-PLUS-WORKS.md for the behaviour this follows.
 
 // ---------- settings ----------
@@ -43,7 +43,7 @@ const DEFAULTS = {
   showTips: true, lockForceKeys: false, quickSet: false, adhocKeys: false, confirmAdhoc: false, hideConfed: false,
   dateOrder: /^en-US|^en-CA/.test(navigator.language) ? 'MDY' : 'DMY', maxDigits: 16, tapLabel: 'off',
   speech: false, speechRate: 1, splitAbove: 9999, thump: false,
-  history: [], look: 'builtin', textScale: 100, textDX: 0, textDY: 0, textWeight: 'auto', exprOnForce: 'hide',
+  history: [], look: 'builtin', keypad: 'auto', textScale: 100, textDX: 0, textDY: 0, textWeight: 'auto', exprOnForce: 'hide',
   lists: Array.from({ length: 20 }, () => ({ name: '', text: '' })), signs: SIGNS_TEXT, chinese: CHINESE_TEXT, log: '',
 };
 
@@ -390,7 +390,7 @@ function backspace() {
 }
 
 function press(k) {
-  if (sel.active && (k === 'neg' || k === 'pct')) { cycleSlot(k === 'neg' ? 1 : -1); return; }
+  if (sel.active && (k === 'neg' || k === 'pct' || k === 'paren')) { cycleSlot(k === 'pct' ? -1 : 1); return; }
   if (sel.timer || sel.tips) { stopSelector(); if (k === 'clear') { resetAll(); render(); return; } }
   if (k === '-' && speaking()) { toggleSpeechPause(); return; }
   if (rem && rem.armed && k !== '=' && k !== 'clear' && !'+-*/'.includes(k)) { remTap(); return; }
@@ -399,6 +399,7 @@ function press(k) {
   else if (k === '=') equals();
   else if (k === 'clear') clear();
   else if (k === 'back') backspace();
+  else if (k === 'paren') return; // ( ) on Android: not supported yet
   else unary(k);
 }
 
@@ -744,7 +745,7 @@ function thump(n) {
 function holdMs(k) {
   if (k === 'clear') return 700;
   if (k === 'back') return 600;
-  if ((k === 'neg' || k === 'pct') && !S.lockForceKeys) return 1000;
+  if ((k === 'neg' || k === 'pct' || k === 'paren') && !S.lockForceKeys) return 1000;
   if (k === '0' && S.peek.zero) return S.peek.zero * 1000;
   if (k === '.' && S.peek.dot) return S.peek.dot * 1000;
   if (k === '=' && S.peek.eq) return S.peek.eq * 1000;
@@ -755,7 +756,7 @@ function holdMs(k) {
 }
 function longPress(k) {
   if (k === 'clear' || k === 'back') clearAll();
-  else if (k === 'neg' || k === 'pct') unlockSelector();
+  else if (k === 'neg' || k === 'pct' || k === 'paren') unlockSelector();
   else if (k === '0' || k === '.' || k === '=') showPeek(k === '0' && S.traitsOnZero);
   else if (k === '/') showIntendedForce();
   else if (k === '+') setAdhoc();
@@ -798,7 +799,7 @@ for (const [id, key] of [['tl', 'tl'], ['tr', 'tr']]) {
   });
   $(id).addEventListener('pointerup', () => {
     clearTimeout(t);
-    if (down && !held) (key === 'tl' ? openHistory : openModeMenu)();
+    if (down && !held && Skin.phone === 'ios') (key === 'tl' ? openHistory : openModeMenu)(); // the sheets are iOS-styled
     down = false;
   });
   $(id).addEventListener('pointercancel', () => { clearTimeout(t); down = false; });
@@ -875,7 +876,7 @@ const CHECKS = { autoHide: 's-autohide', traitsOnZero: 's-traitszero', invert: '
   lockForceKeys: 's-lockkeys', quickSet: 's-quickset', adhocKeys: 's-adhockeys', confirmAdhoc: 's-confirmadhoc',
   hideConfed: 's-hideconfed', speech: 's-speechon', thump: 's-thump' };
 const NUMS = { peekFont: 's-peekfont', maxDigits: 's-maxdigits', speechRate: 's-rate', splitAbove: 's-split', textScale: 's-tscale' };
-const SELECTS = { look: 's-look', textWeight: 's-tweight', exprOnForce: 's-exprforce' };
+const SELECTS = { keypad: 's-keypad', look: 's-look', textWeight: 's-tweight', exprOnForce: 's-exprforce' };
 const PEEKS = ['zero', 'dot', 'eq', 'tl', 'tr'];
 
 function openSettings() {
@@ -933,23 +934,40 @@ async function importSkin() {
   const msg = $('s-skinmsg');
   msg.textContent = 'Reading screenshots…';
   try {
-    await Skin.import({
+    const report = await Skin.import({
       portrait: { base: await readFile($('s-img-p')), typing: await readFile($('s-img-pt')) },
       landscape: { base: await readFile($('s-img-l')), typing: await readFile($('s-img-lt')) },
     });
     S.look = 'mine'; $('s-look').value = 'mine'; saveSettings();
-    await Skin.load('mine');
-    msg.textContent = 'Imported. Keys and display found.';
+    await Skin.load('mine', S.keypad);
+    const names = { ios: 'iPhone', pixel: 'Google Pixel' };
+    const lines = report.map((r) => `${r.orient}: ${r.keys} keys, ${names[r.phone] || r.phone} layout, number ${r.text === 'estimate' ? 'position estimated (add a "while typing" screenshot to match it exactly)' : r.text === 'typing' ? 'placed from the typing screenshot' : 'matched'}`);
+    msg.textContent = '✓ Imported. ' + lines.join(' · ');
+    showPreview();
+    toast('✓ Screenshots imported', lines.join('\n'));
     SKIN_INPUTS.forEach((id) => { $(id).value = ''; });
     return true;
-  } catch (err) { msg.textContent = String(err.message || err); return false; }
+  } catch (err) { msg.textContent = '✕ ' + String(err.message || err); toast('✕ Not imported', String(err.message || err)); return false; }
 }
 $('s-import').addEventListener('click', importSkin);
 SKIN_INPUTS.forEach((id) => $(id).addEventListener('change', importSkin));
 
+function showPreview() {
+  const box = $('s-preview'); if (!box) return;
+  box.innerHTML = '';
+  for (const o of ['portrait', 'landscape']) { const c = Skin.preview(o); if (c) box.append(c); }
+  box.hidden = !box.children.length || S.look !== 'mine';
+}
+function toast(title, body) {
+  let t = $('toast');
+  if (!t) { t = document.createElement('div'); t.id = 'toast'; document.body.append(t); t.addEventListener('click', () => t.classList.remove('on')); }
+  t.innerHTML = ''; const b = document.createElement('b'); b.textContent = title; const p = document.createElement('div'); p.textContent = body;
+  t.append(b, p); t.classList.add('on');
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('on'), 5000);
+}
 function applyLook() {
   Skin.tweak = { scale: (Number(S.textScale) || 100) / 100, dx: Number(S.textDX) || 0, dy: Number(S.textDY) || 0, weight: S.textWeight };
-  return Skin.load(S.look);
+  return Skin.load(S.look, S.keypad).then(showPreview);
 }
 
 applyLook().then(() => render());

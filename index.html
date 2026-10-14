@@ -153,6 +153,13 @@
   #settings .addrow .lbl { color:#ff9f0a; }
   #settings .ver { display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:6px 10px; font-size:13px; color:#8e8e93; margin:4px 0 0; text-align:center; }
   #settings .ver button { border:0; border-radius:14px; background:#ff9f0a; color:#000; font:inherit; font-weight:600; padding:6px 12px; }
+  #settings .skinprev { display:flex; gap:10px; overflow-x:auto; padding:4px 14px 14px; }
+  #settings .skinprev canvas { border-radius:8px; flex:none; }
+  #toast { position:fixed; left:16px; right:16px; top:calc(env(safe-area-inset-top) + 12px); z-index:9; background:rgba(28,28,30,.96);
+    color:#fff; border-radius:16px; padding:14px 16px; font:15px -apple-system, system-ui, sans-serif; box-shadow:0 10px 40px rgba(0,0,0,.5);
+    transform:translateY(-150%); transition:transform .3s; white-space:pre-line; }
+  #toast.on { transform:none; }
+  #toast b { display:block; font-size:17px; margin-bottom:4px; }
   #log { font-family:ui-monospace, Menlo, monospace; font-size:12px; white-space:pre-wrap; color:#9a9a9a; padding:0 14px 12px; max-height:none; }
 </style>
 </head>
@@ -378,13 +385,15 @@
       <b>Making it look exactly like your Calculator</b>
       <ol>
         <li>The built-in look uses screenshots of an iPhone Pro on iOS 26/27.</li>
-        <li>On another iPhone: take a screenshot of your Calculator showing 0, and one while typing (e.g. 11×24, so the key reads C). Pick them below; they import straight away.</li>
+        <li>On another phone: take a screenshot of its Calculator cleared, and one while typing (e.g. 11×24). Pick them below; they import straight away and a message confirms it. iPhone and Google Pixel layouts are recognised automatically (or set Keypad layout).</li>
+        <li>After importing, the preview shows every key outlined in green with what it does, the number area in red and the top buttons in blue. If a label is wrong, change Keypad layout.</li>
         <li><b>Alignment check</b> shows a real "264" with the live text in red over it. Send a screenshot of it if the number looks off.</li>
         <li><b>Sum line above a forced result</b>: hidden by default, because the sum wouldn't add up to the force.</li>
       </ol>
     </div>
     <div class="group form">
       <label class="field"><span>Look</span><select id="s-look"><option value="builtin">Built-in screenshots</option><option value="mine">My screenshots</option><option value="drawn">Drawn</option></select></label>
+      <label class="field"><span>Keypad layout</span><select id="s-keypad"><option value="auto">Auto-detect</option><option value="ios">iPhone</option><option value="pixel">Google Pixel</option></select></label>
       <label class="field"><span>Sum over force</span><select id="s-exprforce"><option value="hide">Hide</option><option value="show">Show real sum</option></select></label>
     </div>
     <div class="group form">
@@ -394,6 +403,7 @@
       <label class="file"><span>Landscape, while typing</span><input type="file" id="s-img-lt" accept="image/*"></label>
       <button class="btn" id="s-import" type="button">Import screenshots</button>
       <div class="msg" id="s-skinmsg"></div>
+      <div class="skinprev" id="s-preview" hidden></div>
     </div>
     <div class="group">
       <label class="sw"><span>Alignment check</span><input type="checkbox" id="s-check"></label>
@@ -453,11 +463,11 @@
   </section>
 </div>
 
-<script src="skin.js?v=20"></script>
-<script src="app.js?v=20"></script>
-<script src="ios.js?v=20"></script>
-<script src="settings-ui.js?v=20"></script>
-<script src="builder.js?v=20"></script>
+<script src="skin.js?v=21"></script>
+<script src="app.js?v=21"></script>
+<script src="ios.js?v=21"></script>
+<script src="settings-ui.js?v=21"></script>
+<script src="builder.js?v=21"></script>
 <script>
   // Updates: a new version downloads in the background; Settings shows "Update ready" with an Update now button.
   window.appUpdate = { state: 'current', reg: null };

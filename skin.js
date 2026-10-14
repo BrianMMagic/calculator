@@ -49,7 +49,10 @@ function detectSkin(img) {
   const greyRows = runs(padTop, (y) => y > h * 0.03 && rowCount(y, 0, w, grey) > w * 0.04, Math.round(h * 0.015));
   const buttons = [];
   let statusBottom = 0;
-  if (greyRows.length) {
+  const bgAt = (x, y) => { const i = (y * w + x) * 4; return [px[i], px[i + 1], px[i + 2]]; };
+  const bg = bgAt(Math.round(w / 2), Math.round(padTop * 0.45));
+  const fg = (x, y) => { const [r, g2, b] = bgAt(x, y); return Math.abs(r - bg[0]) + Math.abs(g2 - bg[1]) + Math.abs(b - bg[2]) > 90; };
+  if (greyRows.length && greyRows[0][0] < h * 0.2) {
     const [a, b] = greyRows[0];
     statusBottom = Math.max(0, a - 2);
     const mid = Math.round((a + b) / 2);
@@ -57,23 +60,60 @@ function detectSkin(img) {
       buttons.push({ x: l, y: a, w: r - l + 1, h: b - a + 1 });
     }
   }
+  if (!buttons.length) {
+    // Icons without a circle behind them (e.g. Android): the first band of foreground pixels below the status bar.
+    const band = runs(Math.round(h * 0.22), (y) => y > h * 0.055 && rowCount(y, 0, w, fg) > 0, 4)[0];
+    if (band) {
+      const [a, b] = band, mid = Math.round((a + b) / 2), size = Math.max(b - a + 1, Math.round(w * 0.11));
+      const xs = []; for (let x = 0; x < w; x++) for (let y = a; y <= b; y += 2) if (fg(x, y)) { xs.push(x); break; }
+      const left = xs.filter((x) => x < w / 2), right = xs.filter((x) => x >= w / 2);
+      const sq = (c) => ({ x: Math.round(c - size / 2), y: Math.round(mid - size / 2), w: size, h: size });
+      if (left.length) buttons.push(sq((Math.min(...left) + Math.max(...left)) / 2));
+      if (right.length) buttons.push(sq((Math.min(...right) + Math.max(...right)) / 2));
+      statusBottom = Math.max(0, Math.round(mid - size / 2) - 2);
+    } else statusBottom = Math.round(h * 0.05);
+  }
   const dispTop = buttons.length ? buttons[0].y + buttons[0].h : Math.round(h * 0.1);
 
   // Display text: the bright cluster nearest above the keypad.
   const bright = (x, y) => lum(x, y) > 150;
   const textLimit = Math.round(padTop - h * 0.012); // skip the glass highlight along the top of the keys
-  const textRows = runs(textLimit, (y) => y > dispTop && rowCount(y, 0, w, bright) > 0, 3);
+  // Only text on the right half counts (a cleared Android display is blank; icons sit on the left). Biggest wins.
+  const x0 = Math.round(w * 0.35);
+  const textRows = runs(textLimit, (y) => y > dispTop && rowCount(y, x0, w, bright) > 0, 3).filter(([a, b]) => b - a + 1 >= h * 0.025);
   let zero = null;
   if (textRows.length) {
-    const [a, b] = textRows[textRows.length - 1];
-    let l = w, r = 0;
-    for (let y = a; y <= b; y++) for (let x = 0; x < w; x++) if (bright(x, y)) { if (x < l) l = x; if (x > r) r = x; }
-    // stroke width of the left side of the "0" at mid-height
-    const my = Math.round((a + b) / 2); let sw = 0;
-    for (let x = l; x < r && bright(x, my); x++) sw++;
-    zero = { x: l, y: a, w: r - l + 1, h: b - a + 1, stroke: sw };
+    const [a, b] = textRows.reduce((m, r) => (r[1] - r[0] > m[1] - m[0] ? r : m));
+    let l = w, r = 0, cr = 0, cg = 0, cb = 0, n = 0;
+    for (let y = a; y <= b; y++) for (let x = x0; x < w; x++) if (bright(x, y)) {
+      if (x < l) l = x; if (x > r) r = x;
+      const i = (y * w + x) * 4; if (lum(x, y) > 200) { cr += px[i]; cg += px[i + 1]; cb += px[i + 2]; n++; }
+    }
+    if (r > w * 0.6 && (r - l + 1) > (b - a + 1) * 0.2) { // not a thin typing cursor
+      // stroke width of the left side of the first glyph at mid-height
+      const my = Math.round((a + b) / 2); let sw = 0;
+      for (let x = l; x < r && bright(x, my); x++) sw++;
+      zero = { x: l, y: a, w: r - l + 1, h: b - a + 1, stroke: sw };
+      if (n) zero.color = `rgb(${Math.round(cr / n)},${Math.round(cg / n)},${Math.round(cb / n)})`;
+    }
   }
-  return { w, h, keys, buttons, zero, statusBottom, padTop, dispTop };
+  // Phone type: on a Pixel the AC key (top-left portrait, 4th in landscape) is strongly coloured; on iPhone that key is grey.
+  let phone = 'ios';
+  const acKey = keys[w > h ? 3 : 0];
+  if (acKey) {
+    const [r, g2, b] = bgAt(Math.round(acKey.x + acKey.w * 0.15), Math.round(acKey.y + acKey.h / 2));
+    if (Math.max(r, g2, b) - Math.min(r, g2, b) > 100) phone = 'pixel';
+  }
+  // Key-label colour (the "7"), used for the number when the screenshot shows none.
+  let label = null;
+  const k7 = keys[w > h ? 0 : 4];
+  if (k7) {
+    let best = -1;
+    for (let y = k7.y; y < k7.y + k7.h; y += 2) for (let x = k7.x; x < k7.x + k7.w; x += 2) {
+      const l2 = lum(x, y); if (l2 > best) { best = l2; const i = (y * w + x) * 4; label = `rgb(${px[i]},${px[i + 1]},${px[i + 2]})`; }
+    }
+  }
+  return { w, h, keys, buttons, zero, statusBottom, padTop, dispTop, phone, bg: `rgb(${bg.join(',')})`, label };
 }
 
 // Crop a region of an image to a data URL (optionally a centred circle).
@@ -87,13 +127,21 @@ function cropImage(img, r, circle = 0) {
 
 // ---------- layout ----------
 const FAMILY = '-apple-system, "SF Pro Display", "SF Pro", system-ui, "Helvetica Neue", Arial, sans-serif';
-const KEYMAP = {
-  portrait: ['back', 'clear', 'pct', '/', '7', '8', '9', '*', '4', '5', '6', '-', '1', '2', '3', '+', 'neg', '0', '.', '='],
-  landscape: ['7', '8', '9', 'back', '/', '4', '5', '6', 'clear', '*', '1', '2', '3', 'pct', '-', 'neg', '0', '.', '=', '+'],
+const LAYOUTS = {
+  ios: {
+    portrait: ['back', 'clear', 'pct', '/', '7', '8', '9', '*', '4', '5', '6', '-', '1', '2', '3', '+', 'neg', '0', '.', '='],
+    landscape: ['7', '8', '9', 'back', '/', '4', '5', '6', 'clear', '*', '1', '2', '3', 'pct', '-', 'neg', '0', '.', '=', '+'],
+  },
+  pixel: { // Google Calculator on Pixel
+    portrait: ['clear', 'paren', 'pct', '/', '7', '8', '9', '*', '4', '5', '6', '-', '1', '2', '3', '+', '0', '.', 'back', '='],
+    landscape: ['7', '8', '9', 'clear', '*', '4', '5', '6', 'paren', '-', '1', '2', '3', 'pct', '+', '0', '.', 'back', '/', '='],
+  },
 };
-const KIND = (k) => (['back', 'clear', 'pct'].includes(k) ? 'fn' : '/*-+='.includes(k) ? 'op' : 'num');
+const KEYMAP = LAYOUTS.ios;
+const keymap = (orient) => (LAYOUTS[Skin.phone] || LAYOUTS.ios)[orient];
+const KIND = (k) => (['back', 'clear', 'pct', 'paren'].includes(k) ? 'fn' : '/*-+='.includes(k) ? 'op' : 'num');
 const BACK_SVG = '<svg viewBox="0 0 40 28" width="1.05em" height="0.75em" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"><path d="M12 2h24a2 2 0 0 1 2 2v20a2 2 0 0 1-2 2H12L2 14z"/><path d="M18 9l10 10M28 9L18 19"/></svg>';
-const LABELS = { back: BACK_SVG, clear: 'AC', pct: '%', '/': '÷', '*': '×', '-': '−', '+': '+', '=': '=', neg: '<sup>+</sup><span class="slash">/</span><sub>−</sub>' };
+const LABELS = { paren: '( )', back: BACK_SVG, clear: 'AC', pct: '%', '/': '÷', '*': '×', '-': '−', '+': '+', '=': '=', neg: '<sup>+</sup><span class="slash">/</span><sub>−</sub>' };
 const CLOCK_SVG = '<svg viewBox="0 0 24 24" width="50%" height="50%" fill="none" stroke="#fff" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M12 6v6H7"/></svg>';
 const CALC_SVG = '<svg viewBox="0 0 24 24" width="46%" height="46%" fill="#fff"><rect x="5" y="2" width="14" height="20" rx="3" fill="none" stroke="#fff" stroke-width="1.8"/><rect x="8" y="5" width="8" height="3" rx="1"/><circle cx="9" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="15" cy="12" r="1.2"/><circle cx="9" cy="15.5" r="1.2"/><circle cx="12" cy="15.5" r="1.2"/><circle cx="15" cy="15.5" r="1.2"/><circle cx="9" cy="19" r="1.2"/><circle cx="12" cy="19" r="1.2"/><circle cx="15" cy="19" r="1.2"/></svg>';
 
@@ -113,7 +161,7 @@ const Skin = {
   img: { portrait: null, landscape: null },
   cSprite: { portrait: null, landscape: null },
   cueSprite: { portrait: null, landscape: null },
-  drawn: false, check: false,
+  drawn: false, check: false, phone: 'ios',
   tweak: { scale: 1, dx: 0, dy: 0, weight: 'auto' },
   orient: 'portrait', cal: null, text: { main: '0', expr: '' }, isC: false, cue: '',
 };
@@ -199,19 +247,22 @@ Skin.setDisplay = function (main, expr) {
   const c = Skin.cal; if (!c) return;
   // Alignment check over the real "264" screenshot: draw the same text in red to compare widths.
   if (Skin.check && Skin.checkImg && Skin.orient === 'portrait') { main = '264'; expr = '11×24'; }
+  if (Skin.phone === 'pixel' && main === '0' && !expr) main = ''; // Google Calculator shows nothing when cleared
   placeText(mainEl, main, c.F, c.baseline, c);
   // The sum line after "=" is ~0.42× the size, grey, its baseline 1.54 cap-heights above the result's.
   placeText(exprEl, expr, c.F * 0.42, c.baseline - c.capPx * 1.543, c);
 };
 Skin.setClear = function (isC) {
   Skin.isC = isC;
-  const k = keyEls[KEYMAP[Skin.orient].indexOf('clear')];
+  const k = keyEls[keymap(Skin.orient).indexOf('clear')];
+  if (!k) return;
   k.querySelector('.lbl').textContent = isC ? 'C' : 'AC';
   k.classList.toggle('c', isC && !!Skin.cSprite[Skin.orient]);
 };
 Skin.setCue = function (cue) {
   Skin.cue = cue;
-  const k = keyEls[KEYMAP[Skin.orient].indexOf('neg')];
+  const k = keyEls[keymap(Skin.orient).indexOf('neg')];
+  if (!k) return; // no ± key on this phone
   k.classList.toggle('add', cue === 'add'); k.classList.toggle('sub', cue === 'sub');
 };
 
@@ -279,8 +330,14 @@ Skin.layout = function () {
     Object.assign(skinImg.style, { left: ox + 'px', top: oy + 'px', width: g.w * s + 'px', height: g.h * s + 'px' });
   }
   coverStatus.style.height = Math.max(0, oy + g.statusBottom * s) + 'px';
+  // Covers and the stage use the screenshot's own background colour; the number uses its text colour.
+  const bg = !drawn && g.bg ? g.bg : '';
+  stage.style.background = bg; coverStatus.style.background = bg; dispZone.style.background = Skin.check ? 'transparent' : bg;
+  mainEl.style.color = Skin.check ? '' : (!drawn && (g.textColor || (g.zero && g.zero.color))) || '';
+  exprEl.style.color = Skin.check ? '' : (!drawn && g.exprColor) || '';
+  mainEl.style.fontFamily = exprEl.style.fontFamily = Skin.phone === 'pixel' ? `"Google Sans", "Product Sans", Roboto, ${FAMILY}` : '';
   Object.assign(dispZone.style, { top: oy + g.dispTop * s + 'px', height: (g.padTop - g.dispTop - g.h * 0.012) * s + 'px' });
-  KEYMAP[orient].forEach((k, i) => {
+  keymap(orient).forEach((k, i) => {
     const b = keyEls[i], r = squareish(g.keys[i]);
     b.dataset.k = k;
     b.className = 'k ' + KIND(k);
@@ -292,7 +349,7 @@ Skin.layout = function () {
     if (k === 'neg' && !drawn && !Skin.cueSprite[orient]) Skin.cueSprite[orient] = cropImage(img, r, 0.62);
     b.querySelector('.cue').style.backgroundImage = k === 'neg' && !drawn ? `url(${Skin.cueSprite[orient]})` : '';
   });
-  g.buttons.slice(0, 2).forEach((r, i) => box(hot[i], r));
+  hot.forEach((e, i) => { const r = g.buttons[i]; e.style.display = r ? '' : 'none'; if (r) box(e, r); });
   Skin.cal = calibrate(g, s, ox, oy);
   Skin.setClear(Skin.isC); Skin.setCue(Skin.cue);
   Skin.setDisplay(Skin.text.main, Skin.text.expr);
@@ -337,29 +394,49 @@ const SkinDB = {
 };
 
 // A cleared screenshot (plus optional "typing" one for the C key) → skin data for one orientation.
-async function buildSkin(baseSrc, typingSrc, knownGeo) {
+// The number's position, size and colour come from the screenshot's "0"; if it shows none (Android), from the
+// typing screenshot's text; failing that, an estimate just above the keypad.
+async function buildSkin(baseSrc, typingSrc, knownGeo, phoneOverride) {
   const base = await loadImage(baseSrc);
   const geo = knownGeo || detectSkin(base);
-  if (geo.keys.length !== 20 || !geo.zero) throw new Error('Could not find the 20 keys and the 0 in that screenshot.');
-  let c = null;
-  if (typingSrc) {
-    const typing = await loadImage(typingSrc);
-    const orient = geo.w > geo.h ? 'landscape' : 'portrait';
-    c = cropImage(typing, squareish(geo.keys[KEYMAP[orient].indexOf('clear')]));
+  if (geo.keys.length !== 20) throw new Error(`Found ${geo.keys.length} keys instead of 20 in that screenshot. Use a screenshot of the calculator itself, without anything covering it.`);
+  const orient = geo.w > geo.h ? 'landscape' : 'portrait';
+  const phone = phoneOverride && phoneOverride !== 'auto' ? phoneOverride : geo.phone || 'ios';
+  let typing = null;
+  if (typingSrc) typing = await loadImage(typingSrc);
+  if (!geo.zero && typing) {
+    const t = detectSkin(typing);
+    if (t.zero) { geo.zero = t.zero; geo.textFrom = 'typing'; }
   }
-  return { img: base, geo, c };
+  if (!geo.zero) {
+    const row = geo.keys[4].y - geo.keys[0].y || geo.keys[0].h;
+    const capH = Math.round(row * 0.32), right = Math.max(...geo.keys.map((k) => k.x + k.w)) - Math.round(geo.w * 0.02);
+    const bottom = Math.round(geo.padTop - row * 0.45);
+    geo.zero = { x: right - Math.round(capH * 0.7), y: bottom - capH, w: Math.round(capH * 0.7), h: capH, stroke: Math.round(capH * 0.11) };
+    geo.textFrom = 'estimate';
+  }
+  geo.textColor = geo.zero.color || (phone === 'pixel' ? geo.label : null);
+  if (geo.textColor && geo.bg) { // the sum line: halfway between text and background
+    const p = (c) => c.match(/\d+/g).map(Number), a = p(geo.textColor), b = p(geo.bg);
+    geo.exprColor = `rgb(${a.map((v, i) => Math.round((v + b[i]) / 2)).join(',')})`;
+  }
+  let c = null;
+  if (typing) c = cropImage(typing, squareish(geo.keys[LAYOUTS[phone][orient].indexOf('clear')]));
+  return { img: base, geo, c, phone };
 }
 
-Skin.load = async function (look) {
+Skin.load = async function (look, keypad = 'auto') {
   Skin.drawn = look === 'drawn';
+  Skin.phone = 'ios';
   let files = null;
   if (look === 'mine') { try { files = await SkinDB.get('skin'); } catch { files = null; } }
   for (const orient of ['portrait', 'landscape']) {
     try {
       const f = files && files[orient];
-      const r = f ? await buildSkin(f.base, f.typing, f.geo)
-        : await buildSkin(`skin/${orient}.png`, orient === 'portrait' ? 'skin/portrait-typing.png' : null, BUILTIN[orient]);
+      const r = f ? await buildSkin(f.base, f.typing, f.geo, keypad)
+        : await buildSkin(`skin/${orient}.png`, orient === 'portrait' ? 'skin/portrait-typing.png' : null, BUILTIN[orient], 'ios');
       Object.assign(Skin.img, { [orient]: r.img }); Skin.geo[orient] = r.geo; Skin.cSprite[orient] = r.c;
+      if (orient === 'portrait' || !files || !files.portrait) Skin.phone = r.phone;
     } catch { Skin.img[orient] = null; Skin.geo[orient] = BUILTIN[orient]; Skin.cSprite[orient] = null; }
     Skin.cueSprite[orient] = null;
   }
@@ -372,17 +449,44 @@ Skin.load = async function (look) {
 // Import from settings: { portrait: {base, typing}, landscape: {base, typing} } as data URLs (any may be missing).
 Skin.import = async function (files) {
   const saved = (await SkinDB.get('skin')) || {};
+  const report = [];
   for (const orient of ['portrait', 'landscape']) {
     const f = files[orient];
     if (!f || (!f.base && !f.typing)) continue;
     const base = f.base || (saved[orient] && saved[orient].base);
     if (!base) throw new Error(`Add a cleared ${orient} screenshot first.`);
-    const r = await buildSkin(base, null, null);
-    const got = r.geo.w > r.geo.h ? 'landscape' : 'portrait';
+    const typing = f.typing || (saved[orient] && saved[orient].typing) || null;
+    const geo = detectSkin(await loadImage(base));
+    const got = geo.w > geo.h ? 'landscape' : 'portrait';
     if (got !== orient) throw new Error(`That ${orient} screenshot looks ${got}.`);
-    saved[orient] = { base, typing: f.typing || (saved[orient] && saved[orient].typing) || null, geo: r.geo };
+    const r = await buildSkin(base, typing, geo, null);
+    saved[orient] = { base, typing, geo: r.geo };
+    report.push({ orient, phone: r.phone, keys: r.geo.keys.length, text: r.geo.textFrom || 'screenshot' });
   }
   await SkinDB.set('skin', saved);
+  return report;
+};
+
+// A small picture of a skin with every detected key outlined and labelled, to check the mapping after importing.
+Skin.preview = function (orient) {
+  const img = Skin.img[orient], g = Skin.geo[orient];
+  if (!img || !g) return null;
+  const W = orient === 'portrait' ? 220 : 340, sc = W / g.w;
+  const cv = document.createElement('canvas'); cv.width = W * 2; cv.height = Math.round(g.h * sc) * 2;
+  const cx = cv.getContext('2d'); cx.scale(2, 2);
+  cx.drawImage(img, 0, 0, W, g.h * sc);
+  cx.lineWidth = 1.5; cx.strokeStyle = '#30d158'; cx.fillStyle = '#30d158'; cx.font = 'bold 10px -apple-system, sans-serif';
+  const names = { back: '⌫', clear: 'AC', pct: '%', paren: '()', neg: '±', '/': '÷', '*': '×', '-': '−' };
+  (LAYOUTS[Skin.phone] || LAYOUTS.ios)[orient].forEach((k, i) => {
+    const r = g.keys[i]; if (!r) return;
+    cx.strokeRect(r.x * sc, r.y * sc, r.w * sc, r.h * sc);
+    cx.fillText(names[k] || k, r.x * sc + 3, r.y * sc + 11);
+  });
+  cx.strokeStyle = '#ff453a';
+  if (g.zero) cx.strokeRect(g.zero.x * sc, g.zero.y * sc, g.zero.w * sc, g.zero.h * sc);
+  g.buttons.forEach((r) => { cx.strokeStyle = '#0a84ff'; cx.strokeRect(r.x * sc, r.y * sc, r.w * sc, r.h * sc); });
+  cv.style.width = W + 'px';
+  return cv;
 };
 
 Skin.layout();
