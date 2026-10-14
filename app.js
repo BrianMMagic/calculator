@@ -765,7 +765,15 @@ function longPress(k) {
 document.querySelectorAll('.k').forEach((b) => {
   let holdTimer = null, settingsTimer = null, held = false, down = false, k = null;
   b.addEventListener('pointerdown', (e) => {
-    e.preventDefault(); held = false; down = true; k = b.dataset.k; b.classList.add('down');
+    e.preventDefault(); held = false; down = true; k = b.dataset.k;
+    if (Skin.stale()) { // keys still laid out for the other orientation: fix it, then use the key under the finger
+      Skin.layout();
+      const hit = document.elementFromPoint(e.clientX, e.clientY);
+      const kb = hit && hit.closest('.k');
+      k = kb ? kb.dataset.k : null;
+      if (!k) { down = false; return; } // nothing under the finger: ignore the tap
+    }
+    b.classList.add('down');
     const ms = holdMs(k);
     if (ms) holdTimer = setTimeout(() => { held = true; longPress(k); }, ms);
     if (k === 'clear') settingsTimer = setTimeout(openSettings, 3000); // secret: keep holding AC

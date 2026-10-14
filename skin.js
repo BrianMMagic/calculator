@@ -217,9 +217,21 @@ const standalone = () => navigator.standalone === true || matchMedia('(display-m
 const safeProbe = mk('div'); safeProbe.style.cssText = 'position:fixed;left:0;top:0;width:0;visibility:hidden;padding-top:env(safe-area-inset-top)';
 document.body.append(safeProbe);
 Skin.view = {};
+const touch = IOS || matchMedia('(pointer: coarse)').matches;
+function isLandscape() {
+  if (touch) {
+    const t = screen.orientation && screen.orientation.type;
+    if (t) return t.startsWith('landscape');
+    if (typeof window.orientation === 'number') return Math.abs(window.orientation) === 90;
+  }
+  return innerWidth > innerHeight;
+}
+Skin.stale = () => (Skin.orient === 'landscape') !== isLandscape();
 function viewSize() {
   let W = innerWidth, H = innerHeight;
-  const land = W > H;
+  // iOS can report the old page size for a moment while rotating; trust the device orientation on phones.
+  const land = isLandscape();
+  if ((W > H) !== land) [W, H] = [H, W];
   const sw = Math.min(screen.width, screen.height), sh = Math.max(screen.width, screen.height);
   const SW = land ? sh : sw, SH = land ? sw : sh;
   const safeTop = parseFloat(getComputedStyle(safeProbe).paddingTop) || 0;
@@ -273,8 +285,16 @@ Skin.layout = function () {
   Skin.setClear(Skin.isC); Skin.setCue(Skin.cue);
   Skin.setDisplay(Skin.text.main, Skin.text.expr);
 };
-addEventListener('resize', () => Skin.layout());
-addEventListener('orientationchange', () => setTimeout(() => Skin.layout(), 300));
+// Re-lay out several times after a rotation: the reported sizes settle over a few hundred ms.
+let relayoutTimers = [];
+function relayoutSoon() {
+  relayoutTimers.forEach(clearTimeout);
+  relayoutTimers = [0, 100, 300, 700, 1200].map((t) => setTimeout(() => Skin.layout(), t));
+}
+addEventListener('resize', relayoutSoon);
+addEventListener('orientationchange', relayoutSoon);
+if (screen.orientation) screen.orientation.addEventListener('change', relayoutSoon);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) relayoutSoon(); });
 
 // ---------- skin files (bundled, or imported into IndexedDB) ----------
 const SkinDB = {
