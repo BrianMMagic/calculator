@@ -51,6 +51,7 @@
   #stage.drawn .k { box-shadow:inset 0 1px 1px rgba(255,255,255,.18), inset 0 -1px 1px rgba(255,255,255,.06); }
   .k .slash { display:inline-block; }
   .k sup, .k sub { font-size:.6em; }
+  .clockhands { position:absolute; display:none; z-index:3; pointer-events:none; border-radius:50%; background-size:100% 100%; }
   .hot { position:absolute; z-index:2; display:flex; align-items:center; justify-content:center; border-radius:50%; }
   #stage:not(.drawn) .hot svg { display:none; }
   #stage.drawn .hot { background:#1f1f1f; }
@@ -153,7 +154,7 @@
   #settings .addrow .lbl { color:#ff9f0a; }
   #settings .ver { display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:6px 10px; font-size:13px; color:#8e8e93; margin:4px 0 0; text-align:center; }
   #settings .ver button { border:0; border-radius:14px; background:#ff9f0a; color:#000; font:inherit; font-weight:600; padding:6px 12px; }
-  #settings .skinprev { display:flex; gap:10px; overflow-x:auto; padding:4px 14px 14px; }
+  #settings .skinprev { display:flex; align-items:flex-start; gap:10px; overflow-x:auto; padding:4px 14px 14px; }
   #settings .skinprev canvas { border-radius:8px; flex:none; }
   #toast { position:fixed; left:16px; right:16px; top:calc(env(safe-area-inset-top) + 12px); z-index:9; background:rgba(28,28,30,.96);
     color:#fff; border-radius:16px; padding:14px 16px; font:15px -apple-system, system-ui, sans-serif; box-shadow:0 10px 40px rgba(0,0,0,.5);
@@ -279,9 +280,14 @@
         <tr><td>Hold <b>÷</b> 1 s</td><td>show the intended force (rescue)</td></tr>
         <tr><td>Type a number, hold <b>+</b></td><td>use it once as the force (Adhoc)</td></tr>
         <tr><td>Hold <b>−</b> 1 s</td><td>replay speech</td></tr>
+        <tr><td>Remainder: watch the <b>clock</b></td><td>up-hand points to the number of taps; mirrored = subtract</td></tr>
       </table>
       After the force shows, taps on 0, . and = are ignored until C/AC, so a peek can't spoil the number.
     </div>
+    <div class="group form">
+      <label class="field"><span>Remainder cue</span><select id="s-remcue"><option value="clock">Clock hands</option><option value="slash">± slash tilt</option><option value="both">Both</option><option value="off">Off</option></select></label>
+    </div>
+    <p class="foot">Clock hands: after the subtotal "=", the hand on the history clock that normally points up turns to the number of taps (1–12) and counts down as they tap. Mirrored clock (second hand on the other side) = tell them "−"; normal = "+". It snaps back when done.</p>
     <div class="group">
       <label class="sw"><span>Disable the ± / % slot selector</span><input type="checkbox" id="s-lockkeys"></label>
       <label class="sw"><span>Quick-set: hold 1–9 to pick slot 1–9</span><input type="checkbox" id="s-quickset"></label>
@@ -454,7 +460,7 @@
         <li>Hold <b>=</b> to peek at their entries, birthday details and so on.</li>
       </ol>
       <h3>Honest maths: Remainder</h3>
-      <p>Add <code>Remainder</code> as the last data field. After the subtotal "=", watch the ± key: the slash tilts left (say "+") or right (say "−"). Then every tap anywhere types the next digit; "=" lands exactly on the force, and the maths checks out.</p>
+      <p>Add <b>Remainder</b> as the last data field. After the subtotal "=", glance at the history clock (top left): the hand that normally points up now points to how many taps are needed (1–12). If the clock looks mirrored (its other hand flipped to the other side), say "press −", otherwise "press +". Then every tap anywhere types the next digit and the hand counts down; "=" lands exactly on the force, and the maths checks out. (Settings → Secret controls → Remainder cue to use the ± slash instead.)</p>
       <h3>Secret controls</h3>
       <p>Hold AC 3 s for this menu · hold ± or % to switch slots · hold ÷ to show the force · type a number and hold + to force it once. More on the <b>Secret controls</b> page.</p>
       <h3>Like the real Calculator</h3>
@@ -463,11 +469,11 @@
   </section>
 </div>
 
-<script src="skin.js?v=21"></script>
-<script src="app.js?v=21"></script>
-<script src="ios.js?v=21"></script>
-<script src="settings-ui.js?v=21"></script>
-<script src="builder.js?v=21"></script>
+<script src="skin.js?v=23"></script>
+<script src="app.js?v=23"></script>
+<script src="ios.js?v=23"></script>
+<script src="settings-ui.js?v=23"></script>
+<script src="builder.js?v=23"></script>
 <script>
   // Updates: a new version downloads in the background; Settings shows "Update ready" with an Update now button.
   window.appUpdate = { state: 'current', reg: null };

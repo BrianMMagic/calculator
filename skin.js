@@ -116,6 +116,48 @@ function detectSkin(img) {
   return { w, h, keys, buttons, zero, statusBottom, padTop, dispTop, phone, bg: `rgb(${bg.join(',')})`, label };
 }
 
+// The history icon's clock: centre, inner radius of its ring, and the angle of the hand nearest 12 o'clock.
+// Only the disc inside the ring (the hands) gets rotated for the remainder cue, so the icon stays the phone's own.
+function findClock(img, r) {
+  if (!r) return null;
+  const w = img.naturalWidth, h = img.naturalHeight;
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+  const cx = cv.getContext('2d', { willReadFrequently: true }); cx.drawImage(img, 0, 0);
+  const x0 = Math.max(0, Math.round(r.x)), y0 = Math.max(0, Math.round(r.y));
+  const bw = Math.min(w - x0, Math.round(r.w)), bh = Math.min(h - y0, Math.round(r.h));
+  const d = cx.getImageData(x0, y0, bw, bh).data;
+  const lumAt = (x, y) => { x = Math.round(x - x0); y = Math.round(y - y0); if (x < 0 || y < 0 || x >= bw || y >= bh) return 0; const i = (y * bw + x) * 4; return (d[i] * 3 + d[i + 1] * 6 + d[i + 2]) / 10; };
+  // Icon pixels are much brighter than the button behind them.
+  let lo = 255, hi = 0;
+  for (let i = 0; i < d.length; i += 16) { const l = (d[i] * 3 + d[i + 1] * 6 + d[i + 2]) / 10; if (l < lo) lo = l; if (l > hi) hi = l; }
+  if (hi - lo < 60) return null;
+  const fg = (x, y) => lumAt(x, y) > lo + (hi - lo) * 0.5;
+  // Centre: middle of the icon's bounding box.
+  let l = 1e9, rr = -1, t = 1e9, b = -1;
+  for (let y = y0; y < y0 + bh; y++) for (let x = x0; x < x0 + bw; x++) if (fg(x, y)) { if (x < l) l = x; if (x > rr) rr = x; if (y < t) t = y; if (y > b) b = y; }
+  if (rr < 0) return null;
+  const cxm = (l + rr) / 2, cym = (t + b) / 2, R = Math.max(rr - l, b - t) / 2;
+  // Ring: distance to the first icon pixel along 24 directions; hands are short, so take the 75th percentile.
+  const dist = [];
+  for (let k = 0; k < 24; k++) {
+    const a = k / 24 * Math.PI * 2; let s2 = R * 0.25;
+    while (s2 < R * 1.1 && !fg(cxm + Math.sin(a) * s2, cym - Math.cos(a) * s2)) s2 += 0.5;
+    dist.push(s2);
+  }
+  dist.sort((p, q) => p - q);
+  const ring = dist[Math.floor(dist.length * 0.75)];
+  if (!(ring > R * 0.4)) return null;
+  // Hands: angles (0 = 12 o'clock, clockwise) with icon pixels at ~55% of the ring radius.
+  const hands = []; let run = null;
+  for (let deg = 0; deg < 360 + 6; deg += 2) {
+    const a = (deg % 360) / 180 * Math.PI, on = fg(cxm + Math.sin(a) * ring * 0.55, cym - Math.cos(a) * ring * 0.55);
+    if (on && !run) run = [deg, deg]; else if (on) run[1] = deg; else if (run) { hands.push(((run[0] + run[1]) / 2) % 360); run = null; }
+  }
+  if (!hands.length) return null;
+  const pointer = hands.reduce((m, a) => (Math.min(a, 360 - a) < Math.min(m, 360 - m) ? a : m));
+  return { cx: cxm, cy: cym, r: Math.max(2, ring - 1.5), pointer: pointer > 180 ? pointer - 360 : pointer };
+}
+
 // Crop a region of an image to a data URL (optionally a centred circle).
 function cropImage(img, r, circle = 0) {
   const cv = document.createElement('canvas'); cv.width = r.w; cv.height = r.h;
@@ -161,6 +203,7 @@ const Skin = {
   img: { portrait: null, landscape: null },
   cSprite: { portrait: null, landscape: null },
   cueSprite: { portrait: null, landscape: null },
+  clock: { portrait: null, landscape: null }, clockCue: null, cueStyle: 'clock',
   drawn: false, check: false, phone: 'ios',
   tweak: { scale: 1, dx: 0, dy: 0, weight: 'auto' },
   orient: 'portrait', cal: null, text: { main: '0', expr: '' }, isC: false, cue: '',
@@ -179,6 +222,7 @@ const keyEls = KEYMAP.portrait.map(() => {
   stage.append(b); return b;
 });
 const hot = [mk('div', 'tl', 'hot'), mk('div', 'tr', 'hot')];
+const clockEl = mk('i', 'clockhands');
 // Alignment check: key outlines (CSS), a line of layout numbers and a dot where each touch lands.
 const diag = mk('div', 'diag');
 document.addEventListener('pointerdown', (e) => {
@@ -190,7 +234,7 @@ document.addEventListener('pointerdown', (e) => {
   diag.textContent = diag.textContent.replace(/ ⇒.*$/, '') + ` ⇒ ${Math.round(e.clientX)},${Math.round(e.clientY)} ${k ? k.dataset.k : 'none'}`;
 }, true);
 hot[0].innerHTML = CLOCK_SVG; hot[1].innerHTML = CALC_SVG;
-stage.append(...hot, diag);
+stage.append(...hot, clockEl, diag);
 
 // Where the baseline sits inside a line box, as a fraction of font size.
 function baselineRatio(weight) {
@@ -261,9 +305,29 @@ Skin.setClear = function (isC) {
 };
 Skin.setCue = function (cue) {
   Skin.cue = cue;
+  if (Skin.cueStyle !== 'slash' && Skin.cueStyle !== 'both') cue = '';
   const k = keyEls[keymap(Skin.orient).indexOf('neg')];
   if (!k) return; // no ± key on this phone
   k.classList.toggle('add', cue === 'add'); k.classList.toggle('sub', cue === 'sub');
+};
+
+// Remainder cue on the clock: the hand that normally points up turns to the number of taps still needed (1–12);
+// mirrored = subtract. null puts the icon back exactly as in the screenshot.
+Skin.setClock = function (cue) {
+  Skin.clockCue = cue;
+  const on = cue && cue.n > 0 && (Skin.cueStyle === 'clock' || Skin.cueStyle === 'both');
+  const ck = Skin.clock[Skin.orient], drawnSvg = hot[0].querySelector('svg');
+  const target = on ? ((cue.n - 1) % 12 + 1) * 30 : 0;
+  if (ck && !stage.classList.contains('drawn')) {
+    clockEl.style.display = on ? 'block' : 'none';
+    if (on) {
+      const p = cue.sub ? -ck.pointer : ck.pointer;
+      clockEl.style.transform = `rotate(${target - p}deg)` + (cue.sub ? ' scaleX(-1)' : '');
+    }
+  } else {
+    clockEl.style.display = 'none';
+    if (drawnSvg) drawnSvg.style.transform = on ? `rotate(${target}deg)` + (cue.sub ? ' scaleX(-1)' : '') : '';
+  }
 };
 
 function squareish(r) {
@@ -350,6 +414,14 @@ Skin.layout = function () {
     b.querySelector('.cue').style.backgroundImage = k === 'neg' && !drawn ? `url(${Skin.cueSprite[orient]})` : '';
   });
   hot.forEach((e, i) => { const r = g.buttons[i]; e.style.display = r ? '' : 'none'; if (r) box(e, r); });
+  if (!drawn && Skin.clock[orient] === null && g.buttons[0]) {
+    const c = findClock(img, g.buttons[0]);
+    Skin.clock[orient] = c ? { ...c, url: cropImage(img, { x: c.cx - c.r, y: c.cy - c.r, w: c.r * 2, h: c.r * 2 }, 1) } : false;
+  }
+  const ck = !drawn && Skin.clock[orient];
+  if (ck) Object.assign(clockEl.style, { left: ox + (ck.cx - ck.r) * s + 'px', top: oy + (ck.cy - ck.r) * s + 'px',
+    width: ck.r * 2 * s + 'px', height: ck.r * 2 * s + 'px', backgroundImage: `url(${ck.url})` });
+  Skin.setClock(Skin.clockCue);
   Skin.cal = calibrate(g, s, ox, oy);
   Skin.setClear(Skin.isC); Skin.setCue(Skin.cue);
   Skin.setDisplay(Skin.text.main, Skin.text.expr);
@@ -398,7 +470,9 @@ const SkinDB = {
 // typing screenshot's text; failing that, an estimate just above the keypad.
 async function buildSkin(baseSrc, typingSrc, knownGeo, phoneOverride) {
   const base = await loadImage(baseSrc);
-  const geo = knownGeo || detectSkin(base);
+  // Imports saved by an older version (before phone types) are analysed again.
+  const geo = knownGeo && (knownGeo.v >= 2 || knownGeo === BUILTIN.portrait || knownGeo === BUILTIN.landscape) ? knownGeo : detectSkin(base);
+  geo.v = 2;
   if (geo.keys.length !== 20) throw new Error(`Found ${geo.keys.length} keys instead of 20 in that screenshot. Use a screenshot of the calculator itself, without anything covering it.`);
   const orient = geo.w > geo.h ? 'landscape' : 'portrait';
   const phone = phoneOverride && phoneOverride !== 'auto' ? phoneOverride : geo.phone || 'ios';
@@ -438,7 +512,7 @@ Skin.load = async function (look, keypad = 'auto') {
       Object.assign(Skin.img, { [orient]: r.img }); Skin.geo[orient] = r.geo; Skin.cSprite[orient] = r.c;
       if (orient === 'portrait' || !files || !files.portrait) Skin.phone = r.phone;
     } catch { Skin.img[orient] = null; Skin.geo[orient] = BUILTIN[orient]; Skin.cSprite[orient] = null; }
-    Skin.cueSprite[orient] = null;
+    Skin.cueSprite[orient] = null; Skin.clock[orient] = null;
   }
   // The real "264" result screenshot (bundled skin only) for the alignment check.
   Skin.checkImg = look === 'mine' ? null : await loadImage('skin/portrait-result.png').catch(() => null);
