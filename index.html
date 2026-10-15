@@ -165,6 +165,12 @@
     transform:translateY(-150%); transition:transform .3s; white-space:pre-line; }
   #toast.on { transform:none; }
   #toast b { display:block; font-size:17px; margin-bottom:4px; }
+  #settings .slider { display:grid; grid-template-columns:1fr auto; align-items:center; gap:6px 12px; padding:12px 14px; }
+  #settings .slider span { font-size:16px; } #settings .slider b { font-weight:400; color:#8e8e93; font-size:15px; }
+  #settings .slider input { grid-column:1 / -1; width:100%; -webkit-appearance:none; appearance:none; height:28px; background:transparent; margin:0; }
+  #settings .slider input::-webkit-slider-runnable-track { height:4px; border-radius:2px; background:#48484a; }
+  #settings .slider input::-webkit-slider-thumb { -webkit-appearance:none; width:28px; height:28px; border-radius:50%; background:#fff;
+    margin-top:-12px; box-shadow:0 2px 6px rgba(0,0,0,.35); }
   #log { font-family:ui-monospace, Menlo, monospace; font-size:12px; white-space:pre-wrap; color:#9a9a9a; padding:0 14px 12px; max-height:none; }
 </style>
 </head>
@@ -290,8 +296,8 @@
     </div>
     <div class="group form">
       <label class="field"><span>Remainder cue</span><select id="s-remcue"><option value="tint">Key tint</option><option value="slash">± slash tilt (iPhone)</option><option value="both">Both</option><option value="off">Off</option></select></label>
-      <label class="field"><span>Digit tint %</span><input id="s-tintlevel" inputmode="numeric"></label>
-      <label class="field"><span>+ / − tint %</span><input id="s-tintop" inputmode="numeric"></label>
+      <label class="slider"><span>Digit tint</span><b id="v-tintlevel"></b><input type="range" id="s-tintlevel" min="1" max="40" step="1"></label>
+      <label class="slider"><span>+ / − tint</span><b id="v-tintop"></b><input type="range" id="s-tintop" min="1" max="40" step="1"></label>
     </div>
     <p class="foot">Key tint: after the subtotal "=", the <b>+</b> (or <b>−</b>) key and the digit key for the number of taps get a faint tint, e.g. + and 9 = "add, 9 taps". The digit steps down 8, 7… as they tap and the tint disappears when done. 10–19 taps: <b>1</b> and a second digit are tinted (1 + 2 = 12). Bright keys (like orange + and −) are darkened slightly, dark keys lightened. Digit and +/− strengths are separate: raise one if you can't see it, lower it if it's too obvious.</p>
     <div class="group">
@@ -476,11 +482,11 @@
   </section>
 </div>
 
-<script src="skin.js?v=28"></script>
-<script src="app.js?v=28"></script>
-<script src="ios.js?v=28"></script>
-<script src="settings-ui.js?v=28"></script>
-<script src="builder.js?v=28"></script>
+<script src="skin.js?v=29"></script>
+<script src="app.js?v=29"></script>
+<script src="ios.js?v=29"></script>
+<script src="settings-ui.js?v=29"></script>
+<script src="builder.js?v=29"></script>
 <script>
   // Updates: a new version downloads in the background; Settings shows "Update ready" with an Update now button.
   window.appUpdate = { state: 'current', reg: null };

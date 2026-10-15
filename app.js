@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION = '1.3.1'; // shown in Settings. Each release also bumps the build number: ?v= in index.html and the cache name in sw.js
+const APP_VERSION = '1.3.2'; // shown in Settings. Each release also bumps the build number: ?v= in index.html and the cache name in sw.js
 // Toxic+-style force calculator. See HOW-TOXIC-PLUS-WORKS.md for the behaviour this follows.
 
 // ---------- settings ----------
@@ -975,6 +975,12 @@ async function importSkin() {
   } catch (err) { msg.textContent = '✕ ' + String(err.message || err); toast('✕ Not imported', String(err.message || err)); return false; }
 }
 $('s-import').addEventListener('click', importSkin);
+// Tint sliders: show the value while dragging.
+for (const id of ['s-tintlevel', 's-tintop']) {
+  const show = () => { $('v-' + id.slice(2)).textContent = $(id).value + '%'; };
+  $(id).addEventListener('input', show);
+  new MutationObserver(show).observe($('settings'), { attributes: true, attributeFilter: ['class'] });
+}
 // Remove imported screenshots and go back to the built-in iPhone look (tap twice to confirm).
 $('s-removeskin').addEventListener('click', async () => {
   const b = $('s-removeskin');
