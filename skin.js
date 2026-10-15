@@ -136,15 +136,32 @@ function findClock(img, r) {
   let l = 1e9, rr = -1, t = 1e9, b = -1;
   for (let y = y0; y < y0 + bh; y++) for (let x = x0; x < x0 + bw; x++) if (fg(x, y)) { if (x < l) l = x; if (x > rr) rr = x; if (y < t) t = y; if (y > b) b = y; }
   if (rr < 0) return null;
-  const cxm = (l + rr) / 2, cym = (t + b) / 2, R = Math.max(rr - l, b - t) / 2;
-  // Ring: distance to the first icon pixel along 24 directions; hands are short, so take the 75th percentile.
-  const dist = [];
-  for (let k = 0; k < 24; k++) {
+  let cxm = (l + rr) / 2, cym = (t + b) / 2;
+  const R = Math.max(rr - l, b - t) / 2;
+  // Distance from (x, y) to the first icon pixel in direction k of 24 (0 = up, clockwise), starting past the hands' hub.
+  const distAt = (x, y, k) => {
     const a = k / 24 * Math.PI * 2; let s2 = R * 0.25;
-    while (s2 < R * 1.1 && !fg(cxm + Math.sin(a) * s2, cym - Math.cos(a) * s2)) s2 += 0.5;
-    dist.push(s2);
+    while (s2 < R * 1.2 && !fg(x + Math.sin(a) * s2, y - Math.cos(a) * s2)) s2 += 0.5;
+    return s2;
+  };
+  // The ring's true centre: an arrowhead (Android's history icon) skews the bounding box, so nudge the centre
+  // until opposite ring distances match, ignoring directions that hit a hand (short) or a gap (long).
+  for (let it = 0; it < 4; it++) {
+    const d = Array.from({ length: 24 }, (_, k) => distAt(cxm, cym, k));
+    const ok = d.filter((v) => v > R * 0.5 && v < R * 1.15).sort((p, q) => p - q);
+    if (!ok.length) break;
+    const med = ok[Math.floor(ok.length / 2)];
+    let dx = 0, dy = 0, n = 0;
+    for (let k = 0; k < 12; k++) {
+      const p = d[k], q = d[k + 12];
+      if (Math.abs(p - med) > med * 0.2 || Math.abs(q - med) > med * 0.2) continue;
+      const a = k / 24 * Math.PI * 2, shift = (p - q) / 2;
+      dx += Math.sin(a) * shift; dy += -Math.cos(a) * shift; n++;
+    }
+    if (!n) break;
+    cxm += dx / n; cym += dy / n;
   }
-  dist.sort((p, q) => p - q);
+  const dist = Array.from({ length: 24 }, (_, k) => distAt(cxm, cym, k)).sort((p, q) => p - q);
   const ring = dist[Math.floor(dist.length * 0.75)];
   if (!(ring > R * 0.4)) return null;
   // Hands: angles (0 = 12 o'clock, clockwise) with icon pixels at ~55% of the ring radius.
@@ -155,7 +172,36 @@ function findClock(img, r) {
   }
   if (!hands.length) return null;
   const pointer = hands.reduce((m, a) => (Math.min(a, 360 - a) < Math.min(m, 360 - m) ? a : m));
-  return { cx: cxm, cy: cym, r: Math.max(2, ring - 1.5), pointer: pointer > 180 ? pointer - 360 : pointer };
+  // Cut just enough to hold the hands, so no part of the ring or its arrow is rotated with them.
+  let reach = 0;
+  for (const h2 of hands) {
+    const a = h2 / 180 * Math.PI; let s2 = 0;
+    while (s2 < ring && fg(cxm + Math.sin(a) * s2, cym - Math.cos(a) * s2)) s2 += 0.5;
+    reach = Math.max(reach, s2);
+  }
+  // Shrink until the disc's edge (away from the hands) holds no ring or arrow pixels.
+  const nearHand = (deg) => hands.some((h2) => Math.min(Math.abs(deg - h2), 360 - Math.abs(deg - h2)) < 20);
+  // Closest point of the ring in any direction (looking past a hand where one is in the way).
+  let ringMin = ring;
+  for (let deg = 0; deg < 360; deg += 3) {
+    const a = deg / 180 * Math.PI, at = (s2) => fg(cxm + Math.sin(a) * s2, cym - Math.cos(a) * s2);
+    let s2 = 1;
+    while (s2 < ring * 1.2 && at(s2)) s2 += 0.5;   // through the hub/hand
+    while (s2 < ring * 1.2 && !at(s2)) s2 += 0.5;  // across the gap
+    if (s2 < ring * 1.2 && s2 > reach + 0.5) ringMin = Math.min(ringMin, s2); // the ring lies beyond the hands
+  }
+  let rad = Math.min(ringMin - 2.5, reach + 1.5); // keep clear of the ring's soft edge
+  while (rad > reach * 0.9) {
+    let hit = 0, n = 0;
+    for (let deg = 0; deg < 360; deg += 4) {
+      if (nearHand(deg)) continue;
+      const a = deg / 180 * Math.PI;
+      for (let s2 = rad - 1.5; s2 <= rad; s2 += 0.75) { n++; if (fg(cxm + Math.sin(a) * s2, cym - Math.cos(a) * s2)) hit++; }
+    }
+    if (!n || hit / n < 0.01) break;
+    rad -= 0.5;
+  }
+  return { cx: cxm, cy: cym, r: Math.max(2, rad), pointer: pointer > 180 ? pointer - 360 : pointer };
 }
 
 // Crop a region of an image to a data URL (optionally a centred circle).
@@ -397,6 +443,10 @@ Skin.layout = function () {
   // Covers and the stage use the screenshot's own background colour; the number uses its text colour.
   const bg = !drawn && g.bg ? g.bg : '';
   stage.style.background = bg; coverStatus.style.background = bg; dispZone.style.background = Skin.check ? 'transparent' : bg;
+  // Ask iOS to tint the status bar with the screenshot's colour too (theme colour and page background).
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.content = bg || '#000000';
+  document.documentElement.style.background = document.body.style.background = bg || '';
   mainEl.style.color = Skin.check ? '' : (!drawn && (g.textColor || (g.zero && g.zero.color))) || '';
   exprEl.style.color = Skin.check ? '' : (!drawn && g.exprColor) || '';
   mainEl.style.fontFamily = exprEl.style.fontFamily = Skin.phone === 'pixel' ? `"Google Sans", "Product Sans", Roboto, ${FAMILY}` : '';
