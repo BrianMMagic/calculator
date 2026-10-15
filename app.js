@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION = '1.2.0'; // shown in Settings. Each release also bumps the build number: ?v= in index.html and the cache name in sw.js
+const APP_VERSION = '1.2.1'; // shown in Settings. Each release also bumps the build number: ?v= in index.html and the cache name in sw.js
 // Toxic+-style force calculator. See HOW-TOXIC-PLUS-WORKS.md for the behaviour this follows.
 
 // ---------- settings ----------
@@ -773,6 +773,7 @@ document.querySelectorAll('.k').forEach((b) => {
   let holdTimer = null, settingsTimer = null, held = false, down = false, k = null;
   b.addEventListener('pointerdown', (e) => {
     e.preventDefault(); held = false; down = true; k = b.dataset.k;
+    try { b.setPointerCapture(e.pointerId); } catch {} // a slight wobble during a long hold must not count as leaving the key
     if (Skin.stale()) { // keys still laid out for the other orientation: fix it, then use the key under the finger
       Skin.layout();
       const hit = document.elementFromPoint(e.clientX, e.clientY);
@@ -832,7 +833,13 @@ document.addEventListener('pointerup', () => { if (peekState.on && S.autoHide) h
 (() => {
   let x0 = null;
   const zone = $('dispzone');
-  zone.addEventListener('pointerdown', (e) => { x0 = e.clientX; });
+  let menuTimer = null;
+  zone.addEventListener('pointerdown', (e) => {
+    x0 = e.clientX;
+    clearTimeout(menuTimer); menuTimer = setTimeout(() => { x0 = null; if (window.closeIosPopups) closeIosPopups(); openSettings(); }, 3000); // backup way into the menu
+  });
+  ['pointerup', 'pointercancel'].forEach((t) => zone.addEventListener(t, () => clearTimeout(menuTimer)));
+  zone.addEventListener('pointermove', (e) => { if (x0 !== null && Math.abs(e.clientX - x0) > 30) clearTimeout(menuTimer); });
   zone.addEventListener('pointerup', (e) => {
     if (x0 === null) return;
     const dx = e.clientX - x0; x0 = null;
@@ -955,6 +962,17 @@ async function importSkin() {
   } catch (err) { msg.textContent = '✕ ' + String(err.message || err); toast('✕ Not imported', String(err.message || err)); return false; }
 }
 $('s-import').addEventListener('click', importSkin);
+// Remove imported screenshots and go back to the built-in iPhone look (tap twice to confirm).
+$('s-removeskin').addEventListener('click', async () => {
+  const b = $('s-removeskin');
+  if (b.dataset.armed !== '1') { b.dataset.armed = '1'; b.textContent = 'Tap again to remove them'; setTimeout(() => { b.dataset.armed = ''; b.textContent = 'Remove my screenshots'; }, 4000); return; }
+  b.dataset.armed = ''; b.textContent = 'Remove my screenshots';
+  try { await SkinDB.set('skin', {}); } catch {}
+  S.look = 'builtin'; S.keypad = 'auto'; $('s-look').value = 'builtin'; $('s-keypad').value = 'auto'; saveSettings();
+  await applyLook();
+  $('s-skinmsg').textContent = '✓ Removed. Back to the built-in iPhone look.';
+  toast('✓ Screenshots removed', 'Back to the built-in iPhone look.');
+});
 SKIN_INPUTS.forEach((id) => $(id).addEventListener('change', importSkin));
 
 function showPreview() {

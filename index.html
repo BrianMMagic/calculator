@@ -18,7 +18,7 @@
   html, body { margin:0; height:100%; overscroll-behavior:none; background:var(--bg); color:var(--txt);
     font-family:-apple-system, "SF Pro Display", "Helvetica Neue", Arial, sans-serif; overflow:hidden; touch-action:manipulation; }
   /* Stage: screenshot skin (or drawn keys) with invisible keys and live text laid over it */
-  #stage { position:fixed; left:0; top:0; overflow:hidden; background:#000; } /* sized from JS */
+  #stage { position:fixed; left:0; top:0; overflow:hidden; background:#000; touch-action:none; } /* sized from JS; no browser gestures, so long holds aren't cancelled */
   #skinimg { position:absolute; display:block; pointer-events:none; }
   #stage.drawn #skinimg { display:none; }
   #cover-status { position:absolute; left:0; right:0; top:0; background:#000; }
@@ -274,7 +274,7 @@
     <div class="help">
       <b>Hidden gestures on the calculator</b>
       <table>
-        <tr><td>Hold <b>AC</b> 3 s</td><td>this menu (clears first, like iOS)</td></tr>
+        <tr><td>Hold <b>AC</b> 3 s, or hold the empty display area 3 s</td><td>this menu</td></tr>
         <tr><td>Hold <b>±</b> or <b>%</b> 1 s</td><td>slot selector: then tap ± (next) / % (previous)</td></tr>
         <tr><td>Hold <b>=</b> or <b>0</b></td><td>peek (set on the Peek page)</td></tr>
         <tr><td>Hold <b>÷</b> 1 s</td><td>show the intended force (rescue)</td></tr>
@@ -408,6 +408,7 @@
       <label class="file"><span>Landscape, showing 0</span><input type="file" id="s-img-l" accept="image/*"></label>
       <label class="file"><span>Landscape, while typing</span><input type="file" id="s-img-lt" accept="image/*"></label>
       <button class="btn" id="s-import" type="button">Import screenshots</button>
+      <button class="btn red" id="s-removeskin" type="button">Remove my screenshots</button>
       <div class="msg" id="s-skinmsg"></div>
       <div class="skinprev" id="s-preview" hidden></div>
     </div>
@@ -469,11 +470,11 @@
   </section>
 </div>
 
-<script src="skin.js?v=23"></script>
-<script src="app.js?v=23"></script>
-<script src="ios.js?v=23"></script>
-<script src="settings-ui.js?v=23"></script>
-<script src="builder.js?v=23"></script>
+<script src="skin.js?v=25"></script>
+<script src="app.js?v=25"></script>
+<script src="ios.js?v=25"></script>
+<script src="settings-ui.js?v=25"></script>
+<script src="builder.js?v=25"></script>
 <script>
   // Updates: a new version downloads in the background; Settings shows "Update ready" with an Update now button.
   window.appUpdate = { state: 'current', reg: null };

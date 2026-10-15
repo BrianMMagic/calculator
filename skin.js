@@ -64,7 +64,7 @@ function detectSkin(img) {
     // Icons without a circle behind them (e.g. Android): the first band of foreground pixels below the status bar.
     const band = runs(Math.round(h * 0.22), (y) => y > h * 0.055 && rowCount(y, 0, w, fg) > 0, 4)[0];
     if (band) {
-      const [a, b] = band, mid = Math.round((a + b) / 2), size = Math.max(b - a + 1, Math.round(w * 0.11));
+      const [a, b] = band, mid = Math.round((a + b) / 2), size = Math.max(b - a + 1, Math.round(Math.min(w, h) * 0.11));
       const xs = []; for (let x = 0; x < w; x++) for (let y = a; y <= b; y += 2) if (fg(x, y)) { xs.push(x); break; }
       const left = xs.filter((x) => x < w / 2), right = xs.filter((x) => x >= w / 2);
       const sq = (c) => ({ x: Math.round(c - size / 2), y: Math.round(mid - size / 2), w: size, h: size });
@@ -222,7 +222,7 @@ const keyEls = KEYMAP.portrait.map(() => {
   stage.append(b); return b;
 });
 const hot = [mk('div', 'tl', 'hot'), mk('div', 'tr', 'hot')];
-const clockEl = mk('i', 'clockhands');
+const clockEl = mk('i', null, 'clockhands');
 // Alignment check: key outlines (CSS), a line of layout numbers and a dot where each touch lands.
 const diag = mk('div', 'diag');
 document.addEventListener('pointerdown', (e) => {
@@ -342,7 +342,7 @@ const standalone = () => navigator.standalone === true || matchMedia('(display-m
 const safeProbe = mk('div'); safeProbe.style.cssText = 'position:fixed;left:0;top:0;width:0;visibility:hidden;padding-top:env(safe-area-inset-top)';
 document.body.append(safeProbe);
 Skin.view = {};
-const touch = IOS || matchMedia('(pointer: coarse)').matches;
+const touch = IOS || /Android/i.test(navigator.userAgent);
 function isLandscape() {
   if (touch) {
     const t = screen.orientation && screen.orientation.type;

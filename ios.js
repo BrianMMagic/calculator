@@ -59,6 +59,7 @@
   document.body.append(shade);
   const closeAll = () => { shade.classList.remove('on'); menu.classList.remove('on'); edit.classList.remove('on'); $('tr').style.visibility = ''; };
   shade.addEventListener('pointerdown', (e) => { e.preventDefault(); closeAll(); });
+  window.closeIosPopups = closeAll;
 
   // ---------- history sheet ----------
   if (!Array.isArray(S.history)) S.history = [];
