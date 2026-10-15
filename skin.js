@@ -264,7 +264,7 @@ const exprEl = mk('div', 'expr', 'txt'), mainEl = mk('div', 'display', 'txt');
 stage.append(skinImg, coverStatus, dispZone, exprEl, mainEl, mk('div', 'extra'), mk('div', 'note'));
 const keyEls = KEYMAP.portrait.map(() => {
   const b = mk('div', null, 'k');
-  b.append(mk('span', null, 'lbl'), mk('i', null, 'spr'), mk('i', null, 'cue'), mk('i', null, 'flash'));
+  b.append(mk('span', null, 'lbl'), mk('i', null, 'spr'), mk('i', null, 'cue'), mk('i', null, 'tintov'), mk('i', null, 'flash'));
   stage.append(b); return b;
 });
 const hot = [mk('div', 'tl', 'hot'), mk('div', 'tr', 'hot')];
@@ -374,6 +374,11 @@ Skin.setClock = function (cue) {
     clockEl.style.display = 'none';
     if (drawnSvg) drawnSvg.style.transform = on ? `rotate(${target}deg)` + (cue.sub ? ' scaleX(-1)' : '') : '';
   }
+};
+
+// Remainder cue: a faint tint over the given keys (e.g. '+' and '9'); [] clears it.
+Skin.setTint = function (keys) {
+  keyEls.forEach((b) => b.classList.toggle('tint', keys.includes(b.dataset.k)));
 };
 
 function squareish(r) {

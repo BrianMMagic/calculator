@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION = '1.2.2'; // shown in Settings. Each release also bumps the build number: ?v= in index.html and the cache name in sw.js
+const APP_VERSION = '1.3.0'; // shown in Settings. Each release also bumps the build number: ?v= in index.html and the cache name in sw.js
 // Toxic+-style force calculator. See HOW-TOXIC-PLUS-WORKS.md for the behaviour this follows.
 
 // ---------- settings ----------
@@ -43,7 +43,7 @@ const DEFAULTS = {
   showTips: true, lockForceKeys: false, quickSet: false, adhocKeys: false, confirmAdhoc: false, hideConfed: false,
   dateOrder: /^en-US|^en-CA/.test(navigator.language) ? 'MDY' : 'DMY', maxDigits: 16, tapLabel: 'off',
   speech: false, speechRate: 1, splitAbove: 9999, thump: false,
-  history: [], look: 'builtin', keypad: 'auto', remCue: 'clock', textScale: 100, textDX: 0, textDY: 0, textWeight: 'auto', exprOnForce: 'hide',
+  history: [], look: 'builtin', keypad: 'auto', remCue: 'tint', tintLevel: 8, textScale: 100, textDX: 0, textDY: 0, textWeight: 'auto', exprOnForce: 'hide',
   lists: Array.from({ length: 20 }, () => ({ name: '', text: '' })), signs: SIGNS_TEXT, chinese: CHINESE_TEXT, log: '',
 };
 
@@ -160,14 +160,23 @@ function format(v) {
 const digitsOf = (s) => String(s).replace(/[^\d]/g, '');
 
 // Remainder cue: after the subtotal "=", the slash in +/− tilts left (add) or right (subtract) until an operator is pressed.
+// Taps still needed, as digit keys: 9 → ['9']; 10–19 → ['1', last digit].
+const tapKeys = (n) => (n <= 0 ? [] : n <= 9 ? [String(n)] : ['1', String(Math.min(n, 19) - 10)]);
 function remCue() {
+  if (S.remCue === 'clock') S.remCue = 'tint'; // the clock cue was retired in 1.3.0
   Skin.cueStyle = S.remCue;
   Skin.setCue(rem && !rem.armed ? (rem.diff.startsWith('-') ? 'sub' : 'add') : '');
-  // Clock: how many taps (counting down as they tap) and whether to add or subtract.
-  if (rem && !rem.armed) Skin.setClock({ n: rem.diff.replace('-', '').length, sub: rem.diff.startsWith('-') });
-  else if (rem && rem.armed) Skin.setClock({ n: rem.digits.length - rem.pos, sub: pendingOp === '-' });
-  else Skin.setClock(null);
+  Skin.setClock(null);
+  // Key tint: after the subtotal "=", + or − and the number of taps are faintly tinted; the number counts down.
+  const keys = [];
+  if (rem && (S.remCue === 'tint' || S.remCue === 'both')) {
+    if (!rem.armed) keys.push(rem.diff.startsWith('-') ? '-' : '+', ...tapKeys(rem.diff.replace('-', '').length));
+    else keys.push(...tapKeys(rem.digits.length - rem.pos));
+  }
+  Skin.setTint(keys);
+  stageTint();
 }
+function stageTint() { $('stage').style.setProperty('--tint', Math.min(0.4, Math.max(0.01, (Number(S.tintLevel) || 8) / 100))); }
 
 // Like iOS 26+: while typing, the main line shows the whole sum (11×24); after "=", the result,
 // with the sum small and grey above it.
@@ -887,7 +896,7 @@ function readList() { S.lists[editList] = { name: $('s-listname').value.trim(), 
 const CHECKS = { autoHide: 's-autohide', traitsOnZero: 's-traitszero', invert: 's-invert', showTips: 's-tips',
   lockForceKeys: 's-lockkeys', quickSet: 's-quickset', adhocKeys: 's-adhockeys', confirmAdhoc: 's-confirmadhoc',
   hideConfed: 's-hideconfed', speech: 's-speechon', thump: 's-thump' };
-const NUMS = { peekFont: 's-peekfont', maxDigits: 's-maxdigits', speechRate: 's-rate', splitAbove: 's-split', textScale: 's-tscale' };
+const NUMS = { tintLevel: 's-tintlevel', peekFont: 's-peekfont', maxDigits: 's-maxdigits', speechRate: 's-rate', splitAbove: 's-split', textScale: 's-tscale' };
 const SELECTS = { remCue: 's-remcue', keypad: 's-keypad', look: 's-look', textWeight: 's-tweight', exprOnForce: 's-exprforce' };
 const PEEKS = ['zero', 'dot', 'eq', 'tl', 'tr'];
 

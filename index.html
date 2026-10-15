@@ -43,6 +43,8 @@
   #stage.drawn .k .cue { display:none; }
   .k.add .cue, .k.add .slash { transform:rotate(-25deg); }
   .k.sub .cue, .k.sub .slash { transform:rotate(25deg); }
+  .k .tintov { background:#fff; opacity:0; transition:opacity .25s; }
+  .k.tint .tintov { opacity:var(--tint, .08); }
   .k .flash { background:#fff; opacity:0; transition:opacity .35s ease-out; }
   .k.down .flash { opacity:.22; transition:none; }
   #stage.drawn .k .lbl { display:block; }
@@ -280,14 +282,15 @@
         <tr><td>Hold <b>÷</b> 1 s</td><td>show the intended force (rescue)</td></tr>
         <tr><td>Type a number, hold <b>+</b></td><td>use it once as the force (Adhoc)</td></tr>
         <tr><td>Hold <b>−</b> 1 s</td><td>replay speech</td></tr>
-        <tr><td>Remainder: watch the <b>clock</b></td><td>up-hand points to the number of taps; mirrored = subtract</td></tr>
+        <tr><td>Remainder: faint tint on keys</td><td>+ or − = which to say; tinted digit = taps left (counts down)</td></tr>
       </table>
       After the force shows, taps on 0, . and = are ignored until C/AC, so a peek can't spoil the number.
     </div>
     <div class="group form">
-      <label class="field"><span>Remainder cue</span><select id="s-remcue"><option value="clock">Clock hands</option><option value="slash">± slash tilt</option><option value="both">Both</option><option value="off">Off</option></select></label>
+      <label class="field"><span>Remainder cue</span><select id="s-remcue"><option value="tint">Key tint</option><option value="slash">± slash tilt (iPhone)</option><option value="both">Both</option><option value="off">Off</option></select></label>
+      <label class="field"><span>Tint strength %</span><input id="s-tintlevel" inputmode="numeric"></label>
     </div>
-    <p class="foot">Clock hands: after the subtotal "=", the hand on the history clock that normally points up turns to the number of taps (1–12) and counts down as they tap. Mirrored clock (second hand on the other side) = tell them "−"; normal = "+". It snaps back when done.</p>
+    <p class="foot">Key tint: after the subtotal "=", the <b>+</b> (or <b>−</b>) key and the digit key for the number of taps get a faint tint, e.g. + and 9 = "add, 9 taps". The digit steps down 8, 7… as they tap and the tint disappears when done. 10–19 taps: <b>1</b> and a second digit are tinted (1 + 2 = 12). Raise the strength if you can't see it; lower it if it's too obvious.</p>
     <div class="group">
       <label class="sw"><span>Disable the ± / % slot selector</span><input type="checkbox" id="s-lockkeys"></label>
       <label class="sw"><span>Quick-set: hold 1–9 to pick slot 1–9</span><input type="checkbox" id="s-quickset"></label>
@@ -461,7 +464,7 @@
         <li>Hold <b>=</b> to peek at their entries, birthday details and so on.</li>
       </ol>
       <h3>Honest maths: Remainder</h3>
-      <p>Add <b>Remainder</b> as the last data field. After the subtotal "=", glance at the history clock (top left): the hand that normally points up now points to how many taps are needed (1–12). If the clock looks mirrored (its other hand flipped to the other side), say "press −", otherwise "press +". Then every tap anywhere types the next digit and the hand counts down; "=" lands exactly on the force, and the maths checks out. (Settings → Secret controls → Remainder cue to use the ± slash instead.)</p>
+      <p>Add <b>Remainder</b> as the last data field. After the subtotal "=", look for the faintly tinted keys: <b>+</b> or <b>−</b> tells you which to say, and the tinted digit is how many taps (e.g. + and 9: "press plus, then tap 9 times"). The digit counts down as they tap and the tint goes away when they're done; "=" lands exactly on the force, and the maths checks out. Settings → Secret controls → Remainder cue to change it or its strength.</p>
       <h3>Secret controls</h3>
       <p>Hold AC 3 s for this menu · hold ± or % to switch slots · hold ÷ to show the force · type a number and hold + to force it once. More on the <b>Secret controls</b> page.</p>
       <h3>Like the real Calculator</h3>
@@ -470,11 +473,11 @@
   </section>
 </div>
 
-<script src="skin.js?v=26"></script>
-<script src="app.js?v=26"></script>
-<script src="ios.js?v=26"></script>
-<script src="settings-ui.js?v=26"></script>
-<script src="builder.js?v=26"></script>
+<script src="skin.js?v=27"></script>
+<script src="app.js?v=27"></script>
+<script src="ios.js?v=27"></script>
+<script src="settings-ui.js?v=27"></script>
+<script src="builder.js?v=27"></script>
 <script>
   // Updates: a new version downloads in the background; Settings shows "Update ready" with an Update now button.
   window.appUpdate = { state: 'current', reg: null };
