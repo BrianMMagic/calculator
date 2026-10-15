@@ -45,6 +45,8 @@
   .k.sub .cue, .k.sub .slash { transform:rotate(25deg); }
   .k .tintov { background:#fff; opacity:0; transition:opacity .25s; }
   .k.tint .tintov { opacity:var(--tint, .08); }
+  .k.tint.op .tintov { opacity:var(--tintop, .12); }
+  .k.brightkey .tintov { background:#000; } /* darken bright keys, lighten dark ones */
   .k .flash { background:#fff; opacity:0; transition:opacity .35s ease-out; }
   .k.down .flash { opacity:.22; transition:none; }
   #stage.drawn .k .lbl { display:block; }
@@ -288,9 +290,10 @@
     </div>
     <div class="group form">
       <label class="field"><span>Remainder cue</span><select id="s-remcue"><option value="tint">Key tint</option><option value="slash">± slash tilt (iPhone)</option><option value="both">Both</option><option value="off">Off</option></select></label>
-      <label class="field"><span>Tint strength %</span><input id="s-tintlevel" inputmode="numeric"></label>
+      <label class="field"><span>Digit tint %</span><input id="s-tintlevel" inputmode="numeric"></label>
+      <label class="field"><span>+ / − tint %</span><input id="s-tintop" inputmode="numeric"></label>
     </div>
-    <p class="foot">Key tint: after the subtotal "=", the <b>+</b> (or <b>−</b>) key and the digit key for the number of taps get a faint tint, e.g. + and 9 = "add, 9 taps". The digit steps down 8, 7… as they tap and the tint disappears when done. 10–19 taps: <b>1</b> and a second digit are tinted (1 + 2 = 12). Raise the strength if you can't see it; lower it if it's too obvious.</p>
+    <p class="foot">Key tint: after the subtotal "=", the <b>+</b> (or <b>−</b>) key and the digit key for the number of taps get a faint tint, e.g. + and 9 = "add, 9 taps". The digit steps down 8, 7… as they tap and the tint disappears when done. 10–19 taps: <b>1</b> and a second digit are tinted (1 + 2 = 12). Bright keys (like orange + and −) are darkened slightly, dark keys lightened. Digit and +/− strengths are separate: raise one if you can't see it, lower it if it's too obvious.</p>
     <div class="group">
       <label class="sw"><span>Disable the ± / % slot selector</span><input type="checkbox" id="s-lockkeys"></label>
       <label class="sw"><span>Quick-set: hold 1–9 to pick slot 1–9</span><input type="checkbox" id="s-quickset"></label>
@@ -473,11 +476,11 @@
   </section>
 </div>
 
-<script src="skin.js?v=27"></script>
-<script src="app.js?v=27"></script>
-<script src="ios.js?v=27"></script>
-<script src="settings-ui.js?v=27"></script>
-<script src="builder.js?v=27"></script>
+<script src="skin.js?v=28"></script>
+<script src="app.js?v=28"></script>
+<script src="ios.js?v=28"></script>
+<script src="settings-ui.js?v=28"></script>
+<script src="builder.js?v=28"></script>
 <script>
   // Updates: a new version downloads in the background; Settings shows "Update ready" with an Update now button.
   window.appUpdate = { state: 'current', reg: null };

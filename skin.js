@@ -377,7 +377,18 @@ Skin.setClock = function (cue) {
 };
 
 // Remainder cue: a faint tint over the given keys (e.g. '+' and '9'); [] clears it.
+// Brightness (0-255) of each key's face, sampled beside its label, so tints can darken bright keys.
+function keyLums(img, g) {
+  const cv = document.createElement('canvas'); cv.width = g.w; cv.height = g.h;
+  const cx = cv.getContext('2d', { willReadFrequently: true }); cx.drawImage(img, 0, 0);
+  return g.keys.map((k) => {
+    const d = cx.getImageData(Math.round(k.x + k.w * 0.14), Math.round(k.y + k.h * 0.45), 3, Math.max(1, Math.round(k.h * 0.1))).data;
+    let t = 0; for (let i = 0; i < d.length; i += 4) t += (d[i] * 3 + d[i + 1] * 6 + d[i + 2]) / 10;
+    return t / (d.length / 4);
+  });
+}
 Skin.setTint = function (keys) {
+  Skin.tintKeys = keys;
   keyEls.forEach((b) => b.classList.toggle('tint', keys.includes(b.dataset.k)));
 };
 
@@ -456,10 +467,13 @@ Skin.layout = function () {
   exprEl.style.color = Skin.check ? '' : (!drawn && g.exprColor) || '';
   mainEl.style.fontFamily = exprEl.style.fontFamily = Skin.phone === 'pixel' ? `"Google Sans", "Product Sans", Roboto, ${FAMILY}` : '';
   Object.assign(dispZone.style, { top: oy + g.dispTop * s + 'px', height: (g.padTop - g.dispTop - g.h * 0.012) * s + 'px' });
+  if (!drawn && !g.keyLum) g.keyLum = keyLums(img, g);
   keymap(orient).forEach((k, i) => {
     const b = keyEls[i], r = squareish(g.keys[i]);
     b.dataset.k = k;
-    b.className = 'k ' + KIND(k);
+    // Bright keys (e.g. orange operators) get a dark tint; dark keys a light one.
+    const bright = drawn ? KIND(k) === 'op' : g.keyLum[i] > 110;
+    b.className = 'k ' + KIND(k) + (bright ? ' brightkey' : '');
     box(b, r);
     b.style.borderRadius = Math.min(r.w, r.h) * s / 2 + 'px';
     b.style.fontSize = Math.min(r.w, r.h) * s * (KIND(k) === 'op' ? 0.4 : 0.36) + 'px';
@@ -478,7 +492,7 @@ Skin.layout = function () {
     width: ck.r * 2 * s + 'px', height: ck.r * 2 * s + 'px', backgroundImage: `url(${ck.url})` });
   Skin.setClock(Skin.clockCue);
   Skin.cal = calibrate(g, s, ox, oy);
-  Skin.setClear(Skin.isC); Skin.setCue(Skin.cue);
+  Skin.setClear(Skin.isC); Skin.setCue(Skin.cue); Skin.setTint(Skin.tintKeys || []); // className was reset above
   Skin.setDisplay(Skin.text.main, Skin.text.expr);
   const v = Skin.view;
   diag.textContent = `${v.inner} scr ${v.screen} top ${v.top} sc ${v.scroll} vv ${v.vv} ${orient}`;
