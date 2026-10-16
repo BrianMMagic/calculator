@@ -249,6 +249,7 @@ const Skin = {
   img: { portrait: null, landscape: null },
   cSprite: { portrait: null, landscape: null },
   cueSprite: { portrait: null, landscape: null },
+  pressSprite: { portrait: null, landscape: null },
   clock: { portrait: null, landscape: null }, clockCue: null, cueStyle: 'clock',
   drawn: false, check: false, phone: 'ios',
   tweak: { scale: 1, dx: 0, dy: 0, weight: 'auto' },
@@ -264,7 +265,7 @@ const exprEl = mk('div', 'expr', 'txt'), mainEl = mk('div', 'display', 'txt');
 stage.append(skinImg, coverStatus, dispZone, exprEl, mainEl, mk('div', 'extra'), mk('div', 'note'));
 const keyEls = KEYMAP.portrait.map(() => {
   const b = mk('div', null, 'k');
-  b.append(mk('span', null, 'lbl'), mk('i', null, 'spr'), mk('i', null, 'cue'), mk('i', null, 'tintov'), mk('i', null, 'flash'));
+  b.append(mk('i', null, 'press'), mk('span', null, 'lbl'), mk('i', null, 'spr'), mk('i', null, 'cue'), mk('i', null, 'tintov'), mk('i', null, 'flash'));
   stage.append(b); return b;
 });
 const hot = [mk('div', 'tl', 'hot'), mk('div', 'tr', 'hot')];
@@ -468,16 +469,26 @@ Skin.layout = function () {
   mainEl.style.fontFamily = exprEl.style.fontFamily = Skin.phone === 'pixel' ? `"Google Sans", "Product Sans", Roboto, ${FAMILY}` : '';
   Object.assign(dispZone.style, { top: oy + g.dispTop * s + 'px', height: (g.padTop - g.dispTop - g.h * 0.012) * s + 'px' });
   if (!drawn && !g.keyLum) g.keyLum = keyLums(img, g);
+  // Pressed look (iOS 26/27): the key itself grows and lightens, so each key gets a crop of itself from the
+  // screenshot, a little larger than the detected circle so its rim is covered too.
+  const PAD = 0.04;
+  if (!drawn && !Skin.pressSprite[orient]) Skin.pressSprite[orient] = g.keys.map((r0) => {
+    const r = squareish(r0), dx = r.w * PAD, dy = r.h * PAD;
+    return cropImage(img, { x: r.x - dx, y: r.y - dy, w: r.w + dx * 2, h: r.h + dy * 2 });
+  });
   keymap(orient).forEach((k, i) => {
     const b = keyEls[i], r = squareish(g.keys[i]);
     b.dataset.k = k;
     // Bright keys (e.g. orange operators) get a dark tint; dark keys a light one.
     const bright = drawn ? KIND(k) === 'op' : g.keyLum[i] > 110;
-    b.className = 'k ' + KIND(k) + (bright ? ' brightkey' : '');
+    b.className = 'k ' + KIND(k) + (bright ? ' brightkey' : '') + (b.classList.contains('down') ? ' down' : '');
     box(b, r);
     b.style.borderRadius = Math.min(r.w, r.h) * s / 2 + 'px';
     b.style.fontSize = Math.min(r.w, r.h) * s * (KIND(k) === 'op' ? 0.4 : 0.36) + 'px';
     b.querySelector('.lbl').innerHTML = LABELS[k] || k;
+    b.querySelector('.press').style.backgroundImage = drawn ? '' : `url(${Skin.pressSprite[orient][i]})`;
+    // round keys: keep the enlarged layers round (a pill / rounded-square key keeps the key's own radius)
+    for (const el of b.querySelectorAll('.press, .flash')) el.style.borderRadius = Math.abs(r.w - r.h) < 2 ? '50%' : '';
     b.querySelector('.spr').style.backgroundImage = k === 'clear' && Skin.cSprite[orient] ? `url(${Skin.cSprite[orient]})` : '';
     if (k === 'neg' && !drawn && !Skin.cueSprite[orient]) Skin.cueSprite[orient] = cropImage(img, r, 0.62);
     b.querySelector('.cue').style.backgroundImage = k === 'neg' && !drawn ? `url(${Skin.cueSprite[orient]})` : '';
@@ -581,7 +592,7 @@ Skin.load = async function (look, keypad = 'auto') {
       Object.assign(Skin.img, { [orient]: r.img }); Skin.geo[orient] = r.geo; Skin.cSprite[orient] = r.c;
       if (orient === 'portrait' || !files || !files.portrait) Skin.phone = r.phone;
     } catch { Skin.img[orient] = null; Skin.geo[orient] = BUILTIN[orient]; Skin.cSprite[orient] = null; }
-    Skin.cueSprite[orient] = null; Skin.clock[orient] = null;
+    Skin.cueSprite[orient] = null; Skin.clock[orient] = null; Skin.pressSprite[orient] = null;
   }
   // The real "264" result screenshot (bundled skin only) for the alignment check.
   Skin.checkImg = look === 'mine' ? null : await loadImage('skin/portrait-result.png').catch(() => null);
