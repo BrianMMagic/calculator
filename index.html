@@ -35,10 +35,11 @@
   .diagdot { position:absolute; width:16px; height:16px; margin:-8px 0 0 -8px; border-radius:50%; background:#ff2d2d; z-index:5; pointer-events:none; }
   .k { position:absolute; display:flex; align-items:center; justify-content:center; color:#fff;
     font-family:-apple-system, "SF Pro Display", "SF Pro", system-ui, sans-serif; font-weight:400;
-    transition:transform .5s cubic-bezier(.28,1.7,.5,1); will-change:transform; }
+    transition:transform .5s cubic-bezier(.28,1.7,.5,1); }
   /* iOS 26/27 press: the key swells with a springy overshoot, lightens, then settles back on release */
   .k.down { transform:scale(1.12); z-index:6; transition:transform .22s cubic-bezier(.3,1.6,.55,1); }
-  .k .press { inset:-4%; background-size:100% 100%; opacity:0; transition:opacity .4s ease-out; }
+  .k .press, .k .flash { inset:auto; left:-4%; top:-4%; width:108%; height:108%; }
+  .k .press { background-size:100% 100%; opacity:0; transition:opacity .4s ease-out; }
   #stage.drawn .k .press { background:inherit; }
   .k.down .press { opacity:1; transition:none; }
   .k .lbl { display:none; line-height:1; }
@@ -53,7 +54,7 @@
   .k.tint .tintov { opacity:var(--tint, .08); }
   .k.tint.op .tintov { opacity:var(--tintop, .12); }
   .k.brightkey .tintov { background:#000; } /* darken bright keys, lighten dark ones */
-  .k .flash { inset:-4%; opacity:0; transition:opacity .4s ease-out;
+  .k .flash { opacity:0; transition:opacity .4s ease-out;
     background:radial-gradient(circle at 30% 25%, rgba(255,255,255,.55), rgba(255,255,255,.22) 60%, rgba(255,255,255,.14)); }
   .k.down .flash { opacity:.75; transition:none; }
   .k.brightkey.down .flash { opacity:.5; }
@@ -490,11 +491,11 @@
   </section>
 </div>
 
-<script src="skin.js?v=31"></script>
-<script src="app.js?v=31"></script>
-<script src="ios.js?v=31"></script>
-<script src="settings-ui.js?v=31"></script>
-<script src="builder.js?v=31"></script>
+<script src="skin.js?v=32"></script>
+<script src="app.js?v=32"></script>
+<script src="ios.js?v=32"></script>
+<script src="settings-ui.js?v=32"></script>
+<script src="builder.js?v=32"></script>
 <script>
   // Updates: a new version downloads in the background; Settings shows "Update ready" with an Update now button.
   window.appUpdate = { state: 'current', reg: null };

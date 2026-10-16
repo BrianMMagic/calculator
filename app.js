@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION = '1.4.1'; // shown in Settings. Each release also bumps the build number: ?v= in index.html and the cache name in sw.js
+const APP_VERSION = '1.4.2'; // shown in Settings. Each release also bumps the build number: ?v= in index.html and the cache name in sw.js
 // Toxic+-style force calculator. See HOW-TOXIC-PLUS-WORKS.md for the behaviour this follows.
 
 // ---------- settings ----------
@@ -794,14 +794,14 @@ document.querySelectorAll('.k').forEach((b) => {
       k = kb ? kb.dataset.k : null;
       if (!k) { down = false; return; } // nothing under the finger: ignore the tap
     }
-    b.classList.add('down');
+    b.classList.add('down'); Skin.setPress(b, true);
     const ms = holdMs(k);
     if (ms) holdTimer = setTimeout(() => { held = true; longPress(k); }, ms);
     if (k === 'clear') settingsTimer = setTimeout(openSettings, 3000); // secret: keep holding AC
   });
   const end = (fire) => {
     if (!down) return;
-    down = false; clearTimeout(holdTimer); clearTimeout(settingsTimer); b.classList.remove('down');
+    down = false; clearTimeout(holdTimer); clearTimeout(settingsTimer); b.classList.remove('down'); Skin.setPress(b, false);
     if (fire && !held) press(k);
   };
   b.addEventListener('pointerup', () => end(true));

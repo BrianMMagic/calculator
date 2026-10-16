@@ -388,6 +388,13 @@ function keyLums(img, g) {
     return t / (d.length / 4);
   });
 }
+// Pressed look on/off for one key element. The crop stays attached until the release fade has finished.
+Skin.setPress = function (b, on) {
+  const p = b.querySelector('.press');
+  clearTimeout(b._pressT);
+  if (on) p.style.backgroundImage = b._press || '';
+  else b._pressT = setTimeout(() => { if (!b.classList.contains('down')) p.style.backgroundImage = ''; }, 600);
+};
 Skin.setTint = function (keys) {
   Skin.tintKeys = keys;
   keyEls.forEach((b) => b.classList.toggle('tint', keys.includes(b.dataset.k)));
@@ -486,7 +493,9 @@ Skin.layout = function () {
     b.style.borderRadius = Math.min(r.w, r.h) * s / 2 + 'px';
     b.style.fontSize = Math.min(r.w, r.h) * s * (KIND(k) === 'op' ? 0.4 : 0.36) + 'px';
     b.querySelector('.lbl').innerHTML = LABELS[k] || k;
-    b.querySelector('.press').style.backgroundImage = drawn ? '' : `url(${Skin.pressSprite[orient][i]})`;
+    // the crop is only attached while the key is pressed (see setPress), so nothing extra is drawn at rest
+    b._press = drawn ? '' : `url(${Skin.pressSprite[orient][i]})`;
+    Skin.setPress(b, b.classList.contains('down'));
     // round keys: keep the enlarged layers round (a pill / rounded-square key keeps the key's own radius)
     for (const el of b.querySelectorAll('.press, .flash')) el.style.borderRadius = Math.abs(r.w - r.h) < 2 ? '50%' : '';
     b.querySelector('.spr').style.backgroundImage = k === 'clear' && Skin.cSprite[orient] ? `url(${Skin.cSprite[orient]})` : '';
