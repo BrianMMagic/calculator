@@ -1,6 +1,6 @@
 // Offline cache so the calculator works in airplane mode on stage.
-const CACHE = 'calc-v37';
-const FILES = ['./', 'index.html', 'skin.js?v=37', 'app.js?v=37', 'ios.js?v=37', 'settings-ui.js?v=37', 'builder.js?v=37', 'skin/portrait.png', 'skin/portrait-typing.png', 'skin/landscape.png', 'skin/portrait-result.png', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png'];
+const CACHE = 'calc-v38';
+const FILES = ['./', 'index.html', 'skin.js?v=38', 'app.js?v=38', 'ios.js?v=38', 'settings-ui.js?v=38', 'builder.js?v=38', 'skin/portrait.png', 'skin/portrait-typing.png', 'skin/landscape.png', 'skin/portrait-result.png', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png'];
 self.addEventListener('install', (e) => e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES))));
 self.addEventListener('activate', (e) => e.waitUntil(
   caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim())));

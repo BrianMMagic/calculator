@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION = '1.5.4'; // shown in Settings. Each release also bumps the build number: ?v= in index.html and the cache name in sw.js
+const APP_VERSION = '1.6.0'; // shown in Settings. Each release also bumps the build number: ?v= in index.html and the cache name in sw.js
 // Toxic+-style force calculator. See HOW-TOXIC-PLUS-WORKS.md for the behaviour this follows.
 
 // ---------- settings ----------
@@ -31,14 +31,14 @@ const CHINESE_TEXT = [
 function defaultSlots() {
   const slots = SLOT_NAMES.map(() => ({ force: '', note: '', fields: [], peek: [...DEFAULT_PEEK], speech: [] }));
   Object.assign(slots[0], { force: '2742', fields: ['Day', 'Month', 'Year'] });
-  Object.assign(slots[DATE_SLOT], { force: 'dMhmm+60', fields: ['Day', 'Month', 'Year'] });
+  Object.assign(slots[DATE_SLOT], { force: 'dMhmm+60', fields: ['Number', 'Number', 'Number', 'Number', 'Remainder'] });
   Object.assign(slots[REPL_SLOT], { force: '07;39;43;51', fields: ['Day', 'Month', 'Year'] });
   Object.assign(slots[CONFED_SLOT], { fields: ['Day', 'Month', 'Year', 'Number', 'Number'] });
   Object.assign(slots[NOFORCE_SLOT], { force: 'No force', fields: ['Day', 'Month', 'Year'] });
   return slots;
 }
 const DEFAULTS = {
-  current: 0, slots: defaultSlots(), adhoc: {}, replIdx: 0,
+  current: DATE_SLOT, defaults2: true, slots: defaultSlots(), adhoc: {}, replIdx: 0,
   peek: { zero: 1, dot: 0, eq: 1, tl: 0, tr: 0 }, autoHide: false, traitsOnZero: true, invert: false, peekFont: 13,
   showTips: true, lockForceKeys: false, quickSet: false, adhocKeys: false, confirmAdhoc: false, hideConfed: false,
   dateOrder: /^en-US|^en-CA/.test(navigator.language) ? 'MDY' : 'DMY', maxDigits: 16, tapLabel: 'off',
@@ -55,6 +55,11 @@ function loadSettings() {
   out.peek = { ...DEFAULTS.peek, ...(out.peek || {}) };
   if (!Array.isArray(out.slots) || out.slots.length !== SLOT_NAMES.length) out.slots = defaultSlots();
   while (out.lists.length < 20) out.lists.push({ name: '', text: '' });
+  // 1.6.0: new default routine (date & time force; four free numbers then the remainder), applied once to saved settings.
+  if (!out.defaults2) {
+    out.defaults2 = true; out.current = DATE_SLOT;
+    out.slots[DATE_SLOT].fields = ['Number', 'Number', 'Number', 'Number', 'Remainder'];
+  }
   return out;
 }
 // Carry the force number, date format and lists over from the first version of this app.
@@ -446,7 +451,7 @@ function press(k) {
   if (sel.active && (k === 'neg' || k === 'pct' || k === 'paren')) { cycleSlot(k === 'pct' ? -1 : 1); return; }
   if (sel.timer || sel.tips) { stopSelector(); if (k === 'clear') { resetAll(); render(); return; } }
   if (k === '-' && speaking()) { toggleSpeechPause(); return; }
-  if (rem && rem.armed && k !== '=' && k !== 'clear' && !'+-*/'.includes(k)) { remTap(); return; }
+  if (remTap()) return; // remainder being typed: every key, even = and the operators, types the next digit
   if (/^[0-9.]$/.test(k)) digit(k);
   else if ('+-*/'.includes(k)) operator(k);
   else if (k === '=') equals();
@@ -902,7 +907,13 @@ document.addEventListener('pointerup', () => { if (peekState.on && S.autoHide) h
 document.addEventListener('pointerdown', (e) => {
   if (!rem || !rem.armed || peekState.on || $('settings').classList.contains('on')) return;
   if (e.target.closest('.k')) return; // keys route through press()
-  if (remTap()) e.preventDefault();
+  if (rem.pos >= rem.digits.length) return; // all typed: the screen works normally again so they can press "="
+  // Anywhere else (display, history and mode buttons, empty space) also types the next digit and does nothing else.
+  e.preventDefault(); e.stopPropagation(); remTap();
+}, true);
+for (const t of ['pointerup', 'click']) document.addEventListener(t, (e) => {
+  if (!rem || !rem.armed || $('settings').classList.contains('on') || e.target.closest('.k')) return;
+  e.preventDefault(); e.stopPropagation(); // swallow the rest of the tap so nothing opens
 }, true);
 
 document.addEventListener('keydown', (e) => {
