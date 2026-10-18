@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION = '1.4.2'; // shown in Settings. Each release also bumps the build number: ?v= in index.html and the cache name in sw.js
+const APP_VERSION = '1.5.0'; // shown in Settings. Each release also bumps the build number: ?v= in index.html and the cache name in sw.js
 // Toxic+-style force calculator. See HOW-TOXIC-PLUS-WORKS.md for the behaviour this follows.
 
 // ---------- settings ----------
@@ -43,7 +43,7 @@ const DEFAULTS = {
   showTips: true, lockForceKeys: false, quickSet: false, adhocKeys: false, confirmAdhoc: false, hideConfed: false,
   dateOrder: /^en-US|^en-CA/.test(navigator.language) ? 'MDY' : 'DMY', maxDigits: 16, tapLabel: 'off',
   speech: false, speechRate: 1, splitAbove: 9999, thump: false,
-  history: [], look: 'builtin', keypad: 'auto', remCue: 'tint', tintLevel: 8, tintOpLevel: 12, textScale: 100, textDX: 0, textDY: 0, textWeight: 'auto', exprOnForce: 'hide',
+  history: [], look: 'builtin', keypad: 'auto', remCue: 'tint', tintLevel: 8, tintOpLevel: 12, textScale: 100, textDX: 0, textDY: 0, textWeight: 'auto', exprOnForce: 'hide', timeNotify: false,
   lists: Array.from({ length: 20 }, () => ({ name: '', text: '' })), signs: SIGNS_TEXT, chinese: CHINESE_TEXT, log: '',
 };
 
@@ -215,9 +215,11 @@ function forceSpec(i = S.current) {
 }
 
 // Date/time format: d dd M MM yy yyyy h hh H HH m mm (s ss), literal digits, optional "+seconds".
+let dateAt = null; // the moment the last date/time force stands for (used for the time-match notification)
 function dateForce(fmt, when = Date.now()) {
   const m = fmt.match(/^(.*?)(?:\+\s*(\d+))?\s*$/);
   const d = new Date(when + (Number(m[2]) || 0) * 1000);
+  dateAt = { t: d.getTime(), unit: /s/.test(m[1]) ? 1e3 : /m/.test(m[1]) ? 6e4 : /[hH]/.test(m[1]) ? 36e5 : 0 };
   const p = (n) => String(n).padStart(2, '0');
   const h12 = d.getHours() % 12 || 12;
   const map = { yyyy: d.getFullYear(), yy: p(d.getFullYear() % 100), MM: p(d.getMonth() + 1), M: d.getMonth() + 1,
@@ -349,7 +351,23 @@ function equals() {
   if (final) finish(spec);
 }
 
+// Time-match notification: when the real clock reaches the forced time (the start of that minute, or that second if
+// the format has seconds), post a notification. Only while the app is open: iOS pauses web apps in the background.
+let notifyTimer = null;
+function scheduleTimeNotify() {
+  clearTimeout(notifyTimer);
+  if (!S.timeNotify || !dateAt || !dateAt.unit || !('Notification' in window) || Notification.permission !== 'granted') return;
+  const at = Math.floor(dateAt.t / dateAt.unit) * dateAt.unit, d = new Date(at);
+  const label = `${d.getHours() % 12 || 12}:${String(d.getMinutes()).padStart(2, '0')}`;
+  notifyTimer = setTimeout(() => {
+    if (Date.now() - at > 60e3) return; // the app was asleep past the moment: a late alert would give it away
+    navigator.serviceWorker.ready.then((r) => r.showNotification(label, { tag: 'timematch', renotify: true }))
+      .catch(() => { try { new Notification(label, { tag: 'timematch' }); } catch {} });
+  }, Math.max(0, at - Date.now()));
+}
+
 function finish(spec) {
+  if (spec.type === 'date') scheduleTimeNotify();
   forceShown = true; remDone = false; rem = null; remCue();
   if (spec.forcing || spec.type === 'repl') zdeLock = true;
   const pk = buildPeek();
@@ -899,10 +917,17 @@ function readList() { S.lists[editList] = { name: $('s-listname').value.trim(), 
 
 const CHECKS = { autoHide: 's-autohide', traitsOnZero: 's-traitszero', invert: 's-invert', showTips: 's-tips',
   lockForceKeys: 's-lockkeys', quickSet: 's-quickset', adhocKeys: 's-adhockeys', confirmAdhoc: 's-confirmadhoc',
-  hideConfed: 's-hideconfed', speech: 's-speechon', thump: 's-thump' };
+  hideConfed: 's-hideconfed', speech: 's-speechon', thump: 's-thump', timeNotify: 's-timenotify' };
 const NUMS = { tintLevel: 's-tintlevel', tintOpLevel: 's-tintop', peekFont: 's-peekfont', maxDigits: 's-maxdigits', speechRate: 's-rate', splitAbove: 's-split', textScale: 's-tscale' };
 const SELECTS = { remCue: 's-remcue', keypad: 's-keypad', look: 's-look', textWeight: 's-tweight', exprOnForce: 's-exprforce' };
 const PEEKS = ['zero', 'dot', 'eq', 'tl', 'tr'];
+// Turning the time-match notification on asks for permission right away (iOS only allows it from a tap).
+$('s-timenotify').addEventListener('change', async (e) => {
+  if (!e.target.checked) return;
+  if (!('Notification' in window)) { e.target.checked = false; toast('Notifications', 'They need the calculator added to the Home Screen (iOS 16.4+).'); return; }
+  const p = Notification.permission === 'default' ? await Notification.requestPermission() : Notification.permission;
+  if (p !== 'granted') { e.target.checked = false; toast('Notifications blocked', 'Allow them in iPhone Settings → Notifications → Calculator.'); }
+});
 
 function openSettings() {
   hidePeek(); stopSelector();
