@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION = '1.5.2'; // shown in Settings. Each release also bumps the build number: ?v= in index.html and the cache name in sw.js
+const APP_VERSION = '1.5.3'; // shown in Settings. Each release also bumps the build number: ?v= in index.html and the cache name in sw.js
 // Toxic+-style force calculator. See HOW-TOXIC-PLUS-WORKS.md for the behaviour this follows.
 
 // ---------- settings ----------
@@ -353,8 +353,8 @@ function equals() {
 
 // Time-match notification: when the real clock reaches the forced time (the start of that minute, or that second if
 // the format has seconds), post a notification. Only while the app is open: iOS pauses web apps in the background.
-// iOS has no vibrate API, but toggling a native switch control gives a haptic tick (iOS 18+). A short burst of
-// ticks makes a buzz you can feel with the banner switched off. Android uses navigator.vibrate.
+// iOS has no vibrate API: the buzz on iPhone comes from the notification itself, so notifications must be allowed.
+// The switch-toggle haptic below only fires right after a real tap, so it is a bonus at best. Android uses navigator.vibrate.
 function hapticTick() {
   const l = document.createElement('label'), i = document.createElement('input');
   i.type = 'checkbox'; i.setAttribute('switch', ''); l.append(i); l.style.display = 'none';
@@ -941,9 +941,9 @@ const PEEKS = ['zero', 'dot', 'eq', 'tl', 'tr'];
 // Turning the time-match notification on asks for permission right away (iOS only allows it from a tap).
 $('s-timenotify').addEventListener('change', async (e) => {
   if (!e.target.checked) return;
-  if (!('Notification' in window)) { toast('Buzz only', 'Notifications need the calculator added to the Home Screen; the buzz still works.'); return; }
+  if (!('Notification' in window)) { e.target.checked = false; toast('Notifications', 'They need the calculator added to the Home Screen (iOS 16.4+).'); return; }
   const p = Notification.permission === 'default' ? await Notification.requestPermission() : Notification.permission;
-  if (p !== 'granted') toast('Notifications blocked', 'The buzz still works. To get the notification too, allow it in iPhone Settings → Notifications → Calculator.');
+  if (p !== 'granted') { e.target.checked = false; toast('Notifications blocked', 'The buzz is the notification, so allow it in iPhone Settings → Notifications → Calculator.'); }
 });
 // Test: buzz (and notify) 5 s from now, so it can be felt with the phone in hand like in a show.
 $('s-testbuzz').addEventListener('click', () => { toast('Test', 'Buzzing in 5 seconds…'); setTimeout(() => fireTimeMatch('Test'), 5000); });
