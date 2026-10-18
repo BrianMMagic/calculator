@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION = '1.6.0'; // shown in Settings. Each release also bumps the build number: ?v= in index.html and the cache name in sw.js
+const APP_VERSION = '1.7.0'; // shown in Settings. Each release also bumps the build number: ?v= in index.html and the cache name in sw.js
 // Toxic+-style force calculator. See HOW-TOXIC-PLUS-WORKS.md for the behaviour this follows.
 
 // ---------- settings ----------
@@ -949,6 +949,24 @@ const CHECKS = { autoHide: 's-autohide', traitsOnZero: 's-traitszero', invert: '
 const NUMS = { buzzLead: 's-buzzlead', tintLevel: 's-tintlevel', tintOpLevel: 's-tintop', peekFont: 's-peekfont', maxDigits: 's-maxdigits', speechRate: 's-rate', splitAbove: 's-split', textScale: 's-tscale' };
 const SELECTS = { remCue: 's-remcue', keypad: 's-keypad', look: 's-look', textWeight: 's-tweight', exprOnForce: 's-exprforce' };
 const PEEKS = ['zero', 'dot', 'eq', 'tl', 'tr'];
+// App icon picker: marks the current choice and gives the link to add the app again with that icon.
+function showIconChoice() {
+  let cur = 'classic'; try { cur = localStorage.getItem('txp-icon') || 'classic'; } catch {}
+  document.querySelectorAll('#icon-pick .row').forEach((r) => { r.querySelector('.val').textContent = r.dataset.icon === cur ? '✓' : ''; });
+}
+document.querySelectorAll('#icon-pick .row').forEach((r) => r.addEventListener('click', () => {
+  const v = r.dataset.icon;
+  try { localStorage.setItem('txp-icon', v); } catch {}
+  $('touch-icon').href = `icons/${v}-180.png`;
+  $('s-iconurl').value = location.origin + location.pathname + '?icon=' + v;
+  $('icon-link').hidden = false;
+  showIconChoice();
+}));
+$('s-iconcopy').addEventListener('click', () => {
+  const u = $('s-iconurl').value;
+  if (navigator.clipboard) navigator.clipboard.writeText(u).then(() => toast('Link copied', 'Paste it into Safari, then Share → Add to Home Screen.')).catch(() => {});
+});
+showIconChoice();
 // Turning the time-match notification on asks for permission right away (iOS only allows it from a tap).
 $('s-timenotify').addEventListener('change', async (e) => {
   if (!e.target.checked) return;

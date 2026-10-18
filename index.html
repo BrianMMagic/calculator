@@ -10,8 +10,17 @@
 <meta name="apple-mobile-web-app-title" content="Calculator">
 <meta name="theme-color" content="#000000">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="apple-touch-icon" href="icon-180.png" id="touch-icon">
 <link rel="icon" href="icon-192.png">
+<script>
+  // App icon choice: iPhone copies the icon when "Add to Home Screen" is tapped, so set it before that.
+  // ?icon=silver in the address wins (Safari and the Home Screen app keep separate storage); otherwise the last choice.
+  (function () {
+    var ok = ['classic', 'dark', 'silver', 'light'], q = (location.search.match(/[?&]icon=(\w+)/) || [])[1], v = null;
+    try { v = q || localStorage.getItem('txp-icon'); if (q) localStorage.setItem('txp-icon', q); } catch (e) { v = q; }
+    if (v && ok.indexOf(v) >= 0) document.getElementById('touch-icon').href = 'icons/' + v + '-180.png';
+  })();
+</script>
 <title>Calculator</title>
 <style>
   :root { --bg:#000; --fn:#a5a5a5; --num:#333; --op:#ff9f0a; --txt:#fff; }
@@ -113,6 +122,7 @@
   #settings .row:active { background:#2c2c2e; }
   #settings .row .ic { width:30px; height:30px; border-radius:7px; display:flex; align-items:center; justify-content:center; font-size:16px; color:#fff; flex:none; }
   #settings .row .lbl { flex:1; }
+  #settings .row .appic { width:36px; height:36px; border-radius:9px; flex:none; }
   #settings .row .val { color:#8e8e93; font-size:15px; max-width:42%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   #settings .row .chev { color:#5a5a5e; font-size:22px; }
   #settings .sw { display:flex; align-items:center; gap:12px; min-height:50px; padding:6px 14px; }
@@ -432,6 +442,18 @@
       <label class="field"><span>Keypad layout</span><select id="s-keypad"><option value="auto">Auto-detect</option><option value="ios">iPhone</option><option value="pixel">Google Pixel</option></select></label>
       <label class="field"><span>Sum over force</span><select id="s-exprforce"><option value="hide">Hide</option><option value="show">Show real sum</option></select></label>
     </div>
+    <p class="sec">App icon</p>
+    <div class="group" id="icon-pick">
+      <button class="row" type="button" data-icon="classic"><img class="appic" src="icons/classic-180.png" alt=""><span class="lbl">Classic</span><span class="val"></span></button>
+      <button class="row" type="button" data-icon="dark"><img class="appic" src="icons/dark-180.png" alt=""><span class="lbl">Dark</span><span class="val"></span></button>
+      <button class="row" type="button" data-icon="silver"><img class="appic" src="icons/silver-180.png" alt=""><span class="lbl">Silver (better when tinted)</span><span class="val"></span></button>
+      <button class="row" type="button" data-icon="light"><img class="appic" src="icons/light-180.png" alt=""><span class="lbl">Light</span><span class="val"></span></button>
+    </div>
+    <div class="group form" id="icon-link" hidden>
+      <label class="field"><span>Link</span><input id="s-iconurl" readonly></label>
+      <button class="row" type="button" id="s-iconcopy"><span class="lbl" style="color:#0a84ff">Copy link</span></button>
+    </div>
+    <p class="foot">iPhone keeps the icon it had when the app was added, so changing it means adding the app again: pick an icon, tap <b>Copy link</b>, paste it into Safari, then Share → <b>Add to Home Screen</b> and delete the old one. You'll need to set up your force again in the new copy, and allow notifications again if you use the buzz.</p>
     <div class="group form">
       <label class="file"><span>Portrait, showing 0</span><input type="file" id="s-img-p" accept="image/*"></label>
       <label class="file"><span>Portrait, while typing</span><input type="file" id="s-img-pt" accept="image/*"></label>
@@ -500,11 +522,11 @@
   </section>
 </div>
 
-<script src="skin.js?v=38"></script>
-<script src="app.js?v=38"></script>
-<script src="ios.js?v=38"></script>
-<script src="settings-ui.js?v=38"></script>
-<script src="builder.js?v=38"></script>
+<script src="skin.js?v=39"></script>
+<script src="app.js?v=39"></script>
+<script src="ios.js?v=39"></script>
+<script src="settings-ui.js?v=39"></script>
+<script src="builder.js?v=39"></script>
 <script>
   // Updates: a new version downloads in the background; Settings shows "Update ready" with an Update now button.
   window.appUpdate = { state: 'current', reg: null };
