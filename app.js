@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION = '1.5.1'; // shown in Settings. Each release also bumps the build number: ?v= in index.html and the cache name in sw.js
+const APP_VERSION = '1.5.2'; // shown in Settings. Each release also bumps the build number: ?v= in index.html and the cache name in sw.js
 // Toxic+-style force calculator. See HOW-TOXIC-PLUS-WORKS.md for the behaviour this follows.
 
 // ---------- settings ----------
@@ -43,7 +43,7 @@ const DEFAULTS = {
   showTips: true, lockForceKeys: false, quickSet: false, adhocKeys: false, confirmAdhoc: false, hideConfed: false,
   dateOrder: /^en-US|^en-CA/.test(navigator.language) ? 'MDY' : 'DMY', maxDigits: 16, tapLabel: 'off',
   speech: false, speechRate: 1, splitAbove: 9999, thump: false,
-  history: [], look: 'builtin', keypad: 'auto', remCue: 'tint', tintLevel: 8, tintOpLevel: 12, textScale: 100, textDX: 0, textDY: 0, textWeight: 'auto', exprOnForce: 'hide', timeNotify: false,
+  history: [], look: 'builtin', keypad: 'auto', remCue: 'tint', tintLevel: 8, tintOpLevel: 12, textScale: 100, textDX: 0, textDY: 0, textWeight: 'auto', exprOnForce: 'hide', timeNotify: false, buzzLead: 5,
   lists: Array.from({ length: 20 }, () => ({ name: '', text: '' })), signs: SIGNS_TEXT, chinese: CHINESE_TEXT, log: '',
 };
 
@@ -376,10 +376,11 @@ function scheduleTimeNotify() {
   if (!S.timeNotify || !dateAt || !dateAt.unit) return;
   const at = Math.floor(dateAt.t / dateAt.unit) * dateAt.unit, d = new Date(at);
   const label = `${d.getHours() % 12 || 12}:${String(d.getMinutes()).padStart(2, '0')}`;
+  const lead = Math.max(0, Number(S.buzzLead) || 0) * 1000; // buzz this long before the clock changes over
   notifyTimer = setTimeout(() => {
     if (Date.now() - at > 60e3) return; // the app was asleep past the moment: a late alert would give it away
     fireTimeMatch(label);
-  }, Math.max(0, at - Date.now()));
+  }, Math.max(0, at - lead - Date.now()));
 }
 
 function finish(spec) {
@@ -934,7 +935,7 @@ function readList() { S.lists[editList] = { name: $('s-listname').value.trim(), 
 const CHECKS = { autoHide: 's-autohide', traitsOnZero: 's-traitszero', invert: 's-invert', showTips: 's-tips',
   lockForceKeys: 's-lockkeys', quickSet: 's-quickset', adhocKeys: 's-adhockeys', confirmAdhoc: 's-confirmadhoc',
   hideConfed: 's-hideconfed', speech: 's-speechon', thump: 's-thump', timeNotify: 's-timenotify' };
-const NUMS = { tintLevel: 's-tintlevel', tintOpLevel: 's-tintop', peekFont: 's-peekfont', maxDigits: 's-maxdigits', speechRate: 's-rate', splitAbove: 's-split', textScale: 's-tscale' };
+const NUMS = { buzzLead: 's-buzzlead', tintLevel: 's-tintlevel', tintOpLevel: 's-tintop', peekFont: 's-peekfont', maxDigits: 's-maxdigits', speechRate: 's-rate', splitAbove: 's-split', textScale: 's-tscale' };
 const SELECTS = { remCue: 's-remcue', keypad: 's-keypad', look: 's-look', textWeight: 's-tweight', exprOnForce: 's-exprforce' };
 const PEEKS = ['zero', 'dot', 'eq', 'tl', 'tr'];
 // Turning the time-match notification on asks for permission right away (iOS only allows it from a tap).

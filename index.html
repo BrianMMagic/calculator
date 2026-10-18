@@ -257,9 +257,14 @@
       <label class="sw"><span>Show field tips after switching slot</span><input type="checkbox" id="s-tips"></label>
       <label class="sw"><span>Hide confederate "+N" label</span><input type="checkbox" id="s-hideconfed"></label>
       <label class="sw"><span>Buzz when the time matches</span><input type="checkbox" id="s-timenotify"></label>
+    </div>
+    <div class="group form">
+      <label class="field"><span>Buzz early (seconds)</span><input id="s-buzzlead" inputmode="numeric"></label>
+    </div>
+    <div class="group">
       <button type="button" class="row" id="s-testbuzz"><span class="lbl" style="color:#0a84ff">Test buzz in 5 seconds</span></button>
     </div>
-    <p class="foot">Date &amp; time force: when the real clock reaches the forced time (the start of that minute, or that second if the force includes seconds), the phone buzzes and posts a notification (the buzz works even with banners switched off; iOS 18 or later). It only fires while the calculator is open. If the time has already been reached by the time the force shows, it fires straight away. Turning it on asks for notification permission; you can switch banners off in iPhone Settings → Notifications → Calculator and keep just the buzz. Use <b>Test buzz</b> to feel it before a show.</p>
+    <p class="foot">Date &amp; time force: the phone buzzes (and posts a notification) <b>Buzz early</b> seconds before the real clock reaches the forced time, so you know it's about to change. Default 5. "Reaches" means the start of that minute, or that second if the force includes seconds. The buzz works with banners switched off (iOS 18 or later). It only fires while the calculator is open; if that moment has already passed when the force shows, it fires straight away. Turning it on asks for notification permission; you can switch banners off in iPhone Settings → Notifications → Calculator and keep just the buzz. Use <b>Test buzz</b> to feel it before a show.</p>
     <p class="foot">The secret slot selector and quick-set keys are under <b>Secret controls</b>.</p>
   </section>
 
@@ -494,11 +499,11 @@
   </section>
 </div>
 
-<script src="skin.js?v=34"></script>
-<script src="app.js?v=34"></script>
-<script src="ios.js?v=34"></script>
-<script src="settings-ui.js?v=34"></script>
-<script src="builder.js?v=34"></script>
+<script src="skin.js?v=35"></script>
+<script src="app.js?v=35"></script>
+<script src="ios.js?v=35"></script>
+<script src="settings-ui.js?v=35"></script>
+<script src="builder.js?v=35"></script>
 <script>
   // Updates: a new version downloads in the background; Settings shows "Update ready" with an Update now button.
   window.appUpdate = { state: 'current', reg: null };
