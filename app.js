@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION = '1.5.0'; // shown in Settings. Each release also bumps the build number: ?v= in index.html and the cache name in sw.js
+const APP_VERSION = '1.5.1'; // shown in Settings. Each release also bumps the build number: ?v= in index.html and the cache name in sw.js
 // Toxic+-style force calculator. See HOW-TOXIC-PLUS-WORKS.md for the behaviour this follows.
 
 // ---------- settings ----------
@@ -353,16 +353,32 @@ function equals() {
 
 // Time-match notification: when the real clock reaches the forced time (the start of that minute, or that second if
 // the format has seconds), post a notification. Only while the app is open: iOS pauses web apps in the background.
+// iOS has no vibrate API, but toggling a native switch control gives a haptic tick (iOS 18+). A short burst of
+// ticks makes a buzz you can feel with the banner switched off. Android uses navigator.vibrate.
+function hapticTick() {
+  const l = document.createElement('label'), i = document.createElement('input');
+  i.type = 'checkbox'; i.setAttribute('switch', ''); l.append(i); l.style.display = 'none';
+  document.body.append(l); l.click(); l.remove();
+}
+function hapticBuzz() {
+  if (navigator.vibrate && navigator.vibrate([200, 100, 200])) return;
+  for (let k = 0; k < 6; k++) setTimeout(hapticTick, k * 90);
+}
 let notifyTimer = null;
+function fireTimeMatch(label) {
+  hapticBuzz();
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  navigator.serviceWorker.ready.then((r) => r.showNotification(label, { tag: 'timematch', renotify: true }))
+    .catch(() => { try { new Notification(label, { tag: 'timematch' }); } catch {} });
+}
 function scheduleTimeNotify() {
   clearTimeout(notifyTimer);
-  if (!S.timeNotify || !dateAt || !dateAt.unit || !('Notification' in window) || Notification.permission !== 'granted') return;
+  if (!S.timeNotify || !dateAt || !dateAt.unit) return;
   const at = Math.floor(dateAt.t / dateAt.unit) * dateAt.unit, d = new Date(at);
   const label = `${d.getHours() % 12 || 12}:${String(d.getMinutes()).padStart(2, '0')}`;
   notifyTimer = setTimeout(() => {
     if (Date.now() - at > 60e3) return; // the app was asleep past the moment: a late alert would give it away
-    navigator.serviceWorker.ready.then((r) => r.showNotification(label, { tag: 'timematch', renotify: true }))
-      .catch(() => { try { new Notification(label, { tag: 'timematch' }); } catch {} });
+    fireTimeMatch(label);
   }, Math.max(0, at - Date.now()));
 }
 
@@ -924,10 +940,12 @@ const PEEKS = ['zero', 'dot', 'eq', 'tl', 'tr'];
 // Turning the time-match notification on asks for permission right away (iOS only allows it from a tap).
 $('s-timenotify').addEventListener('change', async (e) => {
   if (!e.target.checked) return;
-  if (!('Notification' in window)) { e.target.checked = false; toast('Notifications', 'They need the calculator added to the Home Screen (iOS 16.4+).'); return; }
+  if (!('Notification' in window)) { toast('Buzz only', 'Notifications need the calculator added to the Home Screen; the buzz still works.'); return; }
   const p = Notification.permission === 'default' ? await Notification.requestPermission() : Notification.permission;
-  if (p !== 'granted') { e.target.checked = false; toast('Notifications blocked', 'Allow them in iPhone Settings → Notifications → Calculator.'); }
+  if (p !== 'granted') toast('Notifications blocked', 'The buzz still works. To get the notification too, allow it in iPhone Settings → Notifications → Calculator.');
 });
+// Test: buzz (and notify) 5 s from now, so it can be felt with the phone in hand like in a show.
+$('s-testbuzz').addEventListener('click', () => { toast('Test', 'Buzzing in 5 seconds…'); setTimeout(() => fireTimeMatch('Test'), 5000); });
 
 function openSettings() {
   hidePeek(); stopSelector();
